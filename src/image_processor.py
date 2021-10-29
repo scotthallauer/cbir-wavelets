@@ -62,27 +62,33 @@ def pickle_load(file):
   return database
 
 def batch_resize(src, dest):
-  files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f))]
+  files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f)) and f != '.DS_Store']
   print(f'Processing {len(files)} images...')
   for f in files:
-    image = cv2.imread(os.path.join(src, f))
-    image = resize_image(image, image_dim)
-    cv2.imwrite(os.path.join(dest, f), image)
+    try:
+      image = cv2.imread(os.path.join(src, f))
+      image = resize_image(image, image_dim)
+      cv2.imwrite(os.path.join(dest, f), image)
+    except:
+      print(f'Resizing \'{f}\' failed.')
   print(f'Complete.')
 
 def batch_vectorize(src, dest):
-  files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f))]
+  files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f)) and f != '.DS_Store']
   print(f'Processing {len(files)} images...')
   database = {}
   database["size"] = 0
   database["image"] = []
   for f in files:
-    vector = img2vec(os.path.join(src, f))
-    database["size"] += 1
-    database["image"].append({
-      "file": f,
-      "vector": vector
-    })
+    try:
+      vector = img2vec(os.path.join(src, f))
+      database["size"] += 1
+      database["image"].append({
+        "file": f,
+        "vector": vector
+      })
+    except:
+      print(f'Vectorise \'{f}\' failed.')
   pickle_dump(database, dest)
   print(f'Complete.')
 
