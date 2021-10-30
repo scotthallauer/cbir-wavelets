@@ -1,12 +1,25 @@
 import PySimpleGUI as sg
 import cv2
 import math
+import matplotlib.pyplot as plt
 import image_processor as ip
+import image_comparator as ic
 
-query = {
+# WINDOW SETTINGS
+
+WINDOW_DIM = (1200, 700)
+
+def width(proportion):
+  return math.floor(WINDOW_DIM[0] * proportion)
+
+def height(proportion):
+  return math.floor(WINDOW_DIM[1] * proportion)
+
+# GLOBAL PARAMETERS
+
+QUERY = {
   "image": {
     "path": "/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/query1.jpg",
-    "tiny": None,
     "small": None,
     "large": None
   },
@@ -19,9 +32,23 @@ query = {
   }
 }
 
-def submit_query(values):
-  load_image(values["QUERY_PATH"])
-  query["params"] = {
+RESULTS = []
+
+BLANK_IMAGE = ip.resize_image(cv2.imread(f"/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/blank.jpg"), (width(0.137), width(0.137)))
+
+# FUNCTIONS
+
+def load_query_image(values):
+  QUERY["image"]["path"] = values["QUERY_PATH"]
+  image = cv2.imread(QUERY["image"]["path"])
+  QUERY["image"]["small"] = ip.resize_image(image, (128, 128))
+  QUERY["image"]["large"] = ip.resize_image(image, (width(0.2), width(0.2)))
+
+def display_query_image():
+  WINDOW["QUERY_IMAGE"].update(data=ip.img2bytes(QUERY["image"]["large"]))
+
+def load_query_param(values):
+  QUERY["params"] = {
     "percent": int(values["PARAM_PERCENT"]),
     "threshold": int(values["PARAM_THRESHOLD"]),
     "w_quad": [
@@ -37,127 +64,177 @@ def submit_query(values):
     ],
     "limit": int(values["PARAM_LIMIT"])
   }
-  window["QUERY_IMAGE"].update(data=ip.img2bytes(query["image"]["large"]))
-  window["RESULTS"].update(text_color="red")
 
-def search(query, database):
-  results = []
-  q = img2vec(path(query))
-  for c in database['image']:
-    score = pair2score(q, c['vector'])
-    if score[0]:
-      results.append({
-        "file": c['file'],
-        "score": score[1]
+def update_query(values):
+  load_query_image(values)
+  display_query_image()
+  load_query_param(values)
+  print(QUERY["params"])
+
+def process_query():
+  global RESULTS
+  RESULTS.clear()
+  database = ip.load_database("/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/database.pickle")
+  query_vector = ip.img2vec(QUERY["image"]["path"])
+  for candidate in database["image"]:
+    passed, score = ic.pair2score(query_vector, candidate["vector"], QUERY["params"])
+    if passed:
+      RESULTS.append({
+        "image": ip.resize_image(cv2.imread(f"/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/original/{candidate['file']}"), (width(0.137), width(0.137))),
+        "score": score
       })
-  ordered = sorted(results, key=lambda d: d['score'])
-  return ordered
+  RESULTS = sorted(RESULTS, key=lambda r: r["score"])
 
-def load_image(path):
-  query["image"]["path"] = path
-  image = cv2.imread(query["image"]["path"])
-  query["image"]["tiny"] = ip.resize_image(image, (width(0.128), width(0.128)))
-  query["image"]["small"] = ip.resize_image(image, (128, 128))
-  query["image"]["large"] = ip.resize_image(image, (width(0.28), width(0.28)))
+def display_results():
+  for i in range(50):
+    if i < min(len(RESULTS), QUERY["params"]["limit"]):
+      WINDOW[f"RESULT_IMAGE_{i}"].update(data=ip.img2bytes(RESULTS[i]["image"]))
+      WINDOW[f"RESULT_IMAGE_{i}"].set_tooltip(str(RESULTS[i]["score"]))
+    else:
+      WINDOW[f"RESULT_IMAGE_{i}"].update(data=ip.img2bytes(BLANK_IMAGE))
+  if len(RESULTS) == 0:
+    WINDOW["_EXPORT_"].update(visible=False)
+  else:
+    WINDOW["_EXPORT_"].update(visible=True)
 
-window_size = (1000, 600)
+def export_results():
+  num_images = min(len(RESULTS), QUERY["params"]["limit"])
+  if num_images > 0:
+    cols = 5
+    rows = math.ceil(num_images/cols)
+    fig, axs = plt.subplots(rows, cols, figsize=(cols*3,rows*3), dpi=100)
+    for i in range(rows*cols):
+      if i >= num_images:
+        axs[math.floor(i/5), i%5].axis('off')
+      else:
+        axs[math.floor(i/5), i%5].imshow(cv2.cvtColor(RESULTS[i]["image"], cv2.COLOR_BGR2RGB), interpolation="bilinear", cmap=plt.cm.gray)
+        axs[math.floor(i/5), i%5].set_title(f"Image {i + 1}", fontsize=10)
+        axs[math.floor(i/5), i%5].set_xticks([])
+        axs[math.floor(i/5), i%5].set_yticks([])
+    fig.tight_layout()
+    plt.savefig('/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/results.png')
 
-def width(proportion):
-  return math.floor(window_size[0] * proportion)
+def display_stats():
+  return None
 
-def height(proportion):
-  return math.floor(window_size[1] * proportion)
 
-load_image(query["image"]["path"])
+#####
 
-query_column = [
+def plot_results(results):
+  titles = []
+  for i in range(len(results)):
+    titles.append(f"Image {i +1}")
+  fig, axs = plt.subplots(4, 5, figsize=(15,12), dpi=100)
+  for i in range(20):
+    if i >= len(results):
+      axs[math.floor(i/5), i%5].axis('off')
+    else:
+      axs[math.floor(i/5), i%5].imshow(cv2.cvtColor(results[i]["image"], cv2.COLOR_BGR2RGB), interpolation="bilinear", cmap=plt.cm.gray)
+      axs[math.floor(i/5), i%5].set_title(titles[i], fontsize=10)
+      axs[math.floor(i/5), i%5].set_xticks([])
+      axs[math.floor(i/5), i%5].set_yticks([])
+  fig.tight_layout()
+  plt.savefig('/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/results.png')
+  window["RESULTS_IMAGE"].update(source='/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/results.png', subsample=2)
+
+# WINDOW LAYOUT
+
+load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
+
+MATRIX_WEIGHT_LEFT_COLUMN = [
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][0], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W11")],
+  [sg.Text("w11", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][2], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W21")],
+  [sg.Text("w21", pad=(5, (0, 5)), justification="center", expand_x=True)],
+]
+
+MATRIX_WEIGHT_RIGHT_COLUMN = [
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][1], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W12")],
+  [sg.Text("w12", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][3], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W22")],
+  [sg.Text("w22", pad=(5, (0, 5)), justification="center", expand_x=True)],
+]
+
+COMPONENT_WEIGHT_FRAME = [
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][0], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC1")],
+  [sg.Text("wc1", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][1], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC2")],
+  [sg.Text("wc2", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][2], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC3")],
+  [sg.Text("wc3", pad=(5, (0, 5)), justification="center", expand_x=True)],
+]
+
+SELECTION_SETTING_FRAME = [
+  [sg.Slider(default_value=QUERY["params"]["percent"], range=(1,100), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_PERCENT")],
+  [sg.Text("percent", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["threshold"], range=(50000,1000000), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_THRESHOLD")],
+  [sg.Text("threshold", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["limit"], range=(1,50), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_LIMIT")],
+  [sg.Text("max results", pad=(5, (0, 5)), justification="center", expand_x=True)],
+]
+
+QUERY_COLUMN = [
   [
     sg.Text("Query", font=("Helvetica", 20, "bold")),
   ],
   [
-    sg.Image(data=ip.img2bytes(query["image"]["large"]), key="QUERY_IMAGE")
+    sg.Image(data=ip.img2bytes(QUERY["image"]["large"]), pad=(width(0.02), 5), key="QUERY_IMAGE")
   ],
   [
     sg.Text("Path"),
-    sg.Input(str(query["image"]["path"]), size=(25, 1), enable_events=True, key="QUERY_PATH"),
+    sg.Input(QUERY["image"]["path"], size=(33, 1), enable_events=True, key="QUERY_PATH"),
     sg.Button("Load")
   ],
   [
-    sg.Text("percent"),
-    sg.Input(str(query["params"]["percent"]), size=(25, 1), enable_events=True, key="PARAM_PERCENT"),
+    sg.Frame(title="Matrix Weights", font=("Helvetica", 11), layout=[[sg.Column(MATRIX_WEIGHT_LEFT_COLUMN), sg.Column(MATRIX_WEIGHT_RIGHT_COLUMN)]])
   ],
   [
-    sg.Text("threshold"),
-    sg.Input(str(query["params"]["threshold"]), size=(25, 1), enable_events=True, key="PARAM_THRESHOLD"),
+    sg.Frame(title="Component Weights", font=("Helvetica", 11), pad=((5, 8), 5), layout=COMPONENT_WEIGHT_FRAME),
+    sg.Frame(title="Selection Settings", font=("Helvetica", 11), pad=((8, 5), 5), layout=SELECTION_SETTING_FRAME),
   ],
   [
-    sg.Text("w11"),
-    sg.Input(str(query["params"]["w_quad"][0]), size=(25, 1), enable_events=True, key="PARAM_W11"),
-  ],
-  [
-    sg.Text("w12"),
-    sg.Input(str(query["params"]["w_quad"][1]), size=(25, 1), enable_events=True, key="PARAM_W12"),
-  ],
-  [
-    sg.Text("w21"),
-    sg.Input(str(query["params"]["w_quad"][2]), size=(25, 1), enable_events=True, key="PARAM_W21"),
-  ],
-  [
-    sg.Text("w22"),
-    sg.Input(str(query["params"]["w_quad"][3]), size=(25, 1), enable_events=True, key="PARAM_W22"),
-  ],
-  [
-    sg.Text("wc1"),
-    sg.Input(str(query["params"]["w_comp"][0]), size=(25, 1), enable_events=True, key="PARAM_WC1"),
-  ],
-  [
-    sg.Text("wc2"),
-    sg.Input(str(query["params"]["w_comp"][1]), size=(25, 1), enable_events=True, key="PARAM_WC2"),
-  ],
-  [
-    sg.Text("wc3"),
-    sg.Input(str(query["params"]["w_comp"][2]), size=(25, 1), enable_events=True, key="PARAM_WC3"),
-  ],
-  [
-    sg.Text("max results"),
-    sg.Slider(default_value=query["params"]["limit"], range=(1,50), orientation="h", key="PARAM_LIMIT")
-  ],
-  [
-    sg.Button("Search")
+    sg.Button("Search", pad=(5, 10), expand_x=True)
   ]
 ]
 
-result_column = [
+RESULTS_COLUMN = [
   [
     sg.Text("Results", font=("Helvetica", 20, "bold"), key="RESULTS"),
+    sg.Button("Export", visible=False, key="_EXPORT_")
   ]
 ]
 
 for row in range(10):
   result_images = []
   for col in range(5):
-    result_images.append(sg.Image(data=ip.img2bytes(query["image"]["tiny"]), visible=False, key=f"RESULT_IMAGE_{row*10 + col}"))
-  result_column.append(result_images)
+    result_images.append(sg.Image(data=ip.img2bytes(BLANK_IMAGE), key=f"RESULT_IMAGE_{row*5 + col}"))
+  RESULTS_COLUMN.append(result_images)
 
 
-layout = [
+LAYOUT = [
   [
-    sg.Column(query_column, size=(width(0.3), height(1))),
+    sg.Column(QUERY_COLUMN, size=(width(0.25), height(1))),
     sg.VSeparator(),
-    sg.Column(result_column, size=(width(0.7), height(1)), scrollable=True, vertical_scroll_only=True),
+    sg.Column(RESULTS_COLUMN, size=(width(0.75), height(1)), scrollable=True, vertical_scroll_only=True),
   ]
 ]
 
-window = sg.Window("CBIR Search Engine", layout)
+# RUN
+
+WINDOW = sg.Window("CBIR Search Engine", LAYOUT)
 
 while True:
-  event, values = window.read()
+  event, values = WINDOW.read()
   if event == "Exit" or event == sg.WIN_CLOSED:
     break
   if event == "Load":
-    load_image(values["QUERY_PATH"])
-    window["QUERY_IMAGE"].update(data=ip.img2bytes(query["image"]["large"]))
+    load_query_image(values)
+    display_query_image()
   if event == "Search":
-    submit_query(values)
+    update_query(values)
+    process_query()
+    display_results()
+  if event == "_EXPORT_":
+    export_results()
 
-window.close()
+WINDOW.close()
