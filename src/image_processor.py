@@ -1,28 +1,27 @@
 import numpy as np
-import os
 import cv2
 import pywt
-import pickle
 
-component_max = 255
-image_dim = (128, 128)
+def load_image(filename):
+  return cv2.imread(filename)
 
-def resize_image(original, dim):
-  return cv2.resize(original, dim, interpolation = cv2.INTER_LINEAR)
+def save_image(image, filename):
+  cv2.imwrite(filename, image)
 
-def img2bytes(image):
-  return cv2.imencode(".png", image)[1].tobytes()
+def resize_image(image, dim):
+  return cv2.resize(image, dim, interpolation = cv2.INTER_LINEAR)
 
 def get_rgb(image):
   b, g, r = cv2.split(image)
   return (r, g, b)
 
-def get_components(rgb):
-  r, g, b = rgb
-  c1 = (r + g + b) / 3
-  c2 = (r + (component_max - b)) / 2
-  c3 = (r + 2 * (component_max - g) + b) / 4
-  return (c1, c2, c3)
+def get_icc(image):
+  cmp_max = 255
+  r, g, b = get_rgb(image)
+  i = (r + g + b) / 3 # intensity
+  c1 = (r + (cmp_max - b)) / 2 # contrast 1
+  c2 = (r + 2 * (cmp_max - g) + b) / 4 # contrast 2
+  return (i, c1, c2)
 
 def get_dwt(components, level):
   c1, c2, c3 = components
@@ -50,53 +49,13 @@ def get_feature_vector(dwt):
   }
   return vector
 
-def img2vec(filename):
-  image = cv2.imread(filename)
-  image = resize_image(image, image_dim)
-  rgb = get_rgb(image)
-  components = get_components(rgb)
+def img2vec(filename, dim):
+  image = load_image(filename)
+  if image.shape[:2] != dim:
+    image = resize_image(image, dim)
+  components = get_icc(image)
   dwt = get_dwt(components, 5)
   return get_feature_vector(dwt)
 
-def pickle_dump(database, path):
-  with open(path, 'wb') as fo:
-    pickle.dump(database, fo, protocol=pickle.HIGHEST_PROTOCOL)
-
-def pickle_load(file):
-  with open(file, 'rb') as fo:
-    database = pickle.load(fo)
-  return database
-
-def batch_resize(src, dest):
-  files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f)) and f != '.DS_Store']
-  print(f'Processing {len(files)} images...')
-  for f in files:
-    try:
-      image = cv2.imread(os.path.join(src, f))
-      image = resize_image(image, image_dim)
-      cv2.imwrite(os.path.join(dest, f), image)
-    except:
-      print(f'Resizing \'{f}\' failed.')
-  print(f'Complete.')
-
-def batch_vectorize(src, dest):
-  files = [f for f in os.listdir(src) if os.path.isfile(os.path.join(src, f)) and f != '.DS_Store']
-  print(f'Processing {len(files)} images...')
-  database = {}
-  database["size"] = 0
-  database["image"] = []
-  for f in files:
-    try:
-      vector = img2vec(os.path.join(src, f))
-      database["size"] += 1
-      database["image"].append({
-        "file": f,
-        "vector": vector
-      })
-    except:
-      print(f'Vectorise \'{f}\' failed.')
-  pickle_dump(database, dest)
-  print(f'Complete.')
-
-def load_database(path):
-  return pickle_load(path)
+def img2bytes(image):
+  return cv2.imencode(".png", image)[1].tobytes()
