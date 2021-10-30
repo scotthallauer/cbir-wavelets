@@ -53,7 +53,7 @@ def img2vec(filename, dim):
   image = load_image(filename)
   if image.shape[:2] != dim:
     image = resize_image(image, dim)
-  components = get_icc(image)
+  components = get_rgb(image)
   dwt = get_dwt(components, 5)
   return get_feature_vector(dwt)
 

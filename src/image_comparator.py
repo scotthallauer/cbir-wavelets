@@ -33,8 +33,8 @@ def calc_distance_full(query_vector, match_vector, params):
   return dist
 
 def pair2score(query, candidate, params):
-  if not pass_threshold(query, candidate, params["percent"]):
-    return (False, -1)
-  if calc_distance_quick(query, candidate, params) > params["threshold"]:
-    return (False, -1)
+  #if not pass_threshold(query, candidate, params["percent"]):
+  #  return (False, -1)
+  #if calc_distance_quick(query, candidate, params) > params["threshold"]:
+  #  return (False, -1)
   return (True, calc_distance_full(query, candidate, params))

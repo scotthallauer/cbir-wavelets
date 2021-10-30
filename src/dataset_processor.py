@@ -1,3 +1,4 @@
+import pickle
 import image_processor as ip
 from os import listdir
 from os.path import join, isdir, isfile
@@ -22,7 +23,7 @@ def batch_vectorize(src, filename, dim):
   database["image"] = []
   for f in files:
     try:
-      vector = img2vec(join(src, f), dim)
+      vector = ip.img2vec(join(src, f), dim)
       database["size"] += 1
       database["image"].append({
         "file": f,

@@ -2,8 +2,10 @@ import PySimpleGUI as sg
 import cv2
 import math
 import matplotlib.pyplot as plt
+import dataset_processor as dp
 import image_processor as ip
 import image_comparator as ic
+from os.path import join
 
 # WINDOW SETTINGS
 
@@ -17,9 +19,15 @@ def height(proportion):
 
 # GLOBAL PARAMETERS
 
+ROOT = "/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]"
+
+IMAGE_DIM = (128, 128)
+
+DATABASE = dp.load_database(join(ROOT, "data/database.pickle"))
+
 QUERY = {
   "image": {
-    "path": "/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/query1.jpg",
+    "path": join(ROOT, "data/query1.jpg"),
     "small": None,
     "large": None
   },
@@ -34,14 +42,14 @@ QUERY = {
 
 RESULTS = []
 
-BLANK_IMAGE = ip.resize_image(cv2.imread(f"/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/blank.jpg"), (width(0.137), width(0.137)))
+BLANK_IMAGE = ip.resize_image(cv2.imread(join(ROOT, "data/blank.jpg")), (width(0.137), width(0.137)))
 
 # FUNCTIONS
 
 def load_query_image(values):
   QUERY["image"]["path"] = values["QUERY_PATH"]
   image = cv2.imread(QUERY["image"]["path"])
-  QUERY["image"]["small"] = ip.resize_image(image, (128, 128))
+  QUERY["image"]["small"] = ip.resize_image(image, IMAGE_DIM)
   QUERY["image"]["large"] = ip.resize_image(image, (width(0.2), width(0.2)))
 
 def display_query_image():
@@ -74,13 +82,12 @@ def update_query(values):
 def process_query():
   global RESULTS
   RESULTS.clear()
-  database = ip.load_database("/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/database.pickle")
-  query_vector = ip.img2vec(QUERY["image"]["path"])
-  for candidate in database["image"]:
+  query_vector = ip.img2vec(QUERY["image"]["path"], IMAGE_DIM)
+  for candidate in DATABASE["image"]:
     passed, score = ic.pair2score(query_vector, candidate["vector"], QUERY["params"])
     if passed:
       RESULTS.append({
-        "image": ip.resize_image(cv2.imread(f"/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/original/{candidate['file']}"), (width(0.137), width(0.137))),
+        "image": ip.resize_image(cv2.imread(join(ROOT, f"data/original/{candidate['file']}")), (width(0.137), width(0.137))),
         "score": score
       })
   RESULTS = sorted(RESULTS, key=lambda r: r["score"])
@@ -112,30 +119,10 @@ def export_results():
         axs[math.floor(i/5), i%5].set_xticks([])
         axs[math.floor(i/5), i%5].set_yticks([])
     fig.tight_layout()
-    plt.savefig('/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/results.png')
+    plt.savefig(join(ROOT, "data/results.png"))
 
 def display_stats():
   return None
-
-
-#####
-
-def plot_results(results):
-  titles = []
-  for i in range(len(results)):
-    titles.append(f"Image {i +1}")
-  fig, axs = plt.subplots(4, 5, figsize=(15,12), dpi=100)
-  for i in range(20):
-    if i >= len(results):
-      axs[math.floor(i/5), i%5].axis('off')
-    else:
-      axs[math.floor(i/5), i%5].imshow(cv2.cvtColor(results[i]["image"], cv2.COLOR_BGR2RGB), interpolation="bilinear", cmap=plt.cm.gray)
-      axs[math.floor(i/5), i%5].set_title(titles[i], fontsize=10)
-      axs[math.floor(i/5), i%5].set_xticks([])
-      axs[math.floor(i/5), i%5].set_yticks([])
-  fig.tight_layout()
-  plt.savefig('/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/results.png')
-  window["RESULTS_IMAGE"].update(source='/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]/data/results.png', subsample=2)
 
 # WINDOW LAYOUT
 
@@ -233,6 +220,7 @@ while True:
   if event == "Search":
     update_query(values)
     process_query()
+    print(len(RESULTS))
     display_results()
   if event == "_EXPORT_":
     export_results()
