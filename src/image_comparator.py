@@ -5,7 +5,7 @@ distance_threshold = 100000
 w11, w12, w21, w22 = 3, 1, 1, 1
 wc = [1, 2, 2]
 
-def pass_threshold(query_vector, match_vector):
+def pass_threshold(query_vector, match_vector, percent):
   q = query_vector
   m = match_vector
   B = 1 - (percent / 100)
@@ -15,34 +15,26 @@ def pass_threshold(query_vector, match_vector):
     return True
   return False
 
-def calc_distance_quick(query_vector, match_vector):
+def calc_distance_quick(query_vector, match_vector, params):
   q = query_vector
   m = match_vector
   dist = 0
   for i in range(3):
-    dist += w11 * wc[i] * np.linalg.norm(q[f'w_c{i+1}'][0]-m[f'w_c{i+1}'][0])
+    dist += params["w_quad"][0] * params["w_comp"][i] * np.linalg.norm(q[f'w_c{i+1}'][0]-m[f'w_c{i+1}'][0])
   return dist
 
-def calc_distance_full(query_vector, match_vector):
+def calc_distance_full(query_vector, match_vector, params):
   q = query_vector
   m = match_vector
-  t1 = 0
-  for i in range(3):
-    t1 += w11 * wc[i] * np.linalg.norm(q[f'w_c{i+1}'][0]-m[f'w_c{i+1}'][0])
-  t2 = 0
-  for i in range(3):
-    t2 += w12 * wc[i] * np.linalg.norm(q[f'w_c{i+1}'][1][0]-m[f'w_c{i+1}'][1][0])
-  t3 = 0
-  for i in range(3):
-    t3 += w21 * wc[i] * np.linalg.norm(q[f'w_c{i+1}'][1][1]-m[f'w_c{i+1}'][1][1])
-  t4 = 0
-  for i in range(3):
-    t4 += w22 * wc[i] * np.linalg.norm(q[f'w_c{i+1}'][1][2]-m[f'w_c{i+1}'][1][2])
-  return t1 + t2 + t3 + t4
+  dist = 0
+  for i in range(4):
+    for j in range(3):
+      dist += params["w_quad"][i] * params["w_comp"][j] * np.linalg.norm(q[f'w_c{j+1}'][i]-m[f'w_c{j+1}'][i])
+  return dist
 
-def pair2score(query, candidate):
-  if not pass_threshold(query, candidate):
+def pair2score(query, candidate, params):
+  if not pass_threshold(query, candidate, params["percent"]):
     return (False, -1)
-  if calc_distance_quick(query, candidate) > distance_threshold:
+  if calc_distance_quick(query, candidate, params) > params["threshold"]:
     return (False, -1)
-  return (True, calc_distance_full(query, candidate))
+  return (True, calc_distance_full(query, candidate, params))

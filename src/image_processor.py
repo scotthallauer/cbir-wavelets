@@ -10,6 +10,9 @@ image_dim = (128, 128)
 def resize_image(original, dim):
   return cv2.resize(original, dim, interpolation = cv2.INTER_LINEAR)
 
+def img2bytes(image):
+  return cv2.imencode(".png", image)[1].tobytes()
+
 def get_rgb(image):
   b, g, r = cv2.split(image)
   return (r, g, b)
@@ -28,8 +31,11 @@ def get_dwt(components, level):
   coeff_c3 = pywt.dwt2(c3, 'bior1.3')
   for i in range(level-1):
     coeff_c1 = pywt.dwt2(coeff_c1[0], 'bior1.3')
+    coeff_c1 = np.array([coeff_c1[0], coeff_c1[1][0], coeff_c1[1][1], coeff_c1[1][2]])
     coeff_c2 = pywt.dwt2(coeff_c2[0], 'bior1.3')
+    coeff_c2 = np.array([coeff_c2[0], coeff_c2[1][0], coeff_c2[1][1], coeff_c2[1][2]])
     coeff_c3 = pywt.dwt2(coeff_c3[0], 'bior1.3')
+    coeff_c3 = np.array([coeff_c3[0], coeff_c3[1][0], coeff_c3[1][1], coeff_c3[1][2]])
   return (coeff_c1, coeff_c2, coeff_c3)
 
 def get_feature_vector(dwt):
