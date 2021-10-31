@@ -45,7 +45,7 @@ QUERY = {
 
 RESULTS = []
 
-BLANK_IMAGE = ip.resize_image(cv2.imread(join(ROOT, "data/blank.jpg")), (width(0.137), width(0.137)))
+BLANK_IMAGE = ip.resize_image(cv2.imread(join(ROOT, "media/blank.jpg")), (width(0.137), width(0.137)))
 
 # FUNCTIONS
 
@@ -96,7 +96,6 @@ def process_query():
       })
   RESULTS = sorted(RESULTS, key=lambda r: r["score"])
   T.stop()
-  return T.time()
 
 def display_results():
   for i in range(50):
@@ -128,7 +127,9 @@ def export_results():
     plt.savefig(join(ROOT, "data/results.png"))
 
 def display_stats():
-  return None
+  WINDOW["_STATS_"].update(
+    f"Showing {min(len(RESULTS), QUERY['params']['limit'])} of {len(RESULTS)} results ({'{:.2f}'.format(T.time())} seconds)", 
+    visible=True)
 
 # WINDOW LAYOUT
 
@@ -194,6 +195,9 @@ RESULTS_COLUMN = [
   [
     sg.Text("Results", font=("Helvetica", 20, "bold"), key="RESULTS"),
     sg.Button("Export", visible=False, key="_EXPORT_")
+  ],
+  [
+    sg.Text("", key="_STATS_", visible=False)
   ]
 ]
 
@@ -214,7 +218,7 @@ LAYOUT = [
 
 # RUN
 
-WINDOW = sg.Window("CBIR Search Engine", LAYOUT)
+WINDOW = sg.Window("Wavelet CBIR Search Engine", LAYOUT)
 
 while True:
   event, values = WINDOW.read()
@@ -225,8 +229,9 @@ while True:
     display_query_image()
   if event == "Search":
     update_query(values)
-    print(process_query())
+    process_query()
     display_results()
+    display_stats()
   if event == "_EXPORT_":
     export_results()
 

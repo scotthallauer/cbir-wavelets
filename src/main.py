@@ -3,7 +3,7 @@ from os.path import join
 
 root = "/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]"
 dim = (128, 128)
-option = 1 # 1 = resize, 2 = vectorize, 3 = query
+option = 2 # 1 = resize, 2 = vectorize, 3 = query
 
 if option == 1:
   dp.batch_resize(join(root, "data/original"), join(root, "data/resized"), dim)
