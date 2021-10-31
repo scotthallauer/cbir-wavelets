@@ -31,6 +31,8 @@ SELECTED_DATASET = None
 
 DATASETS = []
 
+WINDOW_OPENED = False
+
 T = Timer()
 
 QUERY = {
@@ -198,35 +200,47 @@ def import_dataset():
     [sg.Frame(title="Dataset Information", font=("Helvetica", 11), pad=(10, 10), layout=[[sg.Column(input_left_column, pad=(10, 10)), sg.Column(input_right_column, pad=(10, 10))]])],
     [sg.Button("Import", pad=(10, 5)), sg.Button("Cancel")]
   ]
-  window = sg.Window("Import Dataset", layout, modal=True)
+  window = sg.Window("Import Dataset", layout, modal=True, keep_on_top=True)
   choice = None
   title, src = "", ""
   while True:
     event, values = window.read()
     if event == "Exit" or event == "Cancel" or event == sg.WIN_CLOSED:
+      if not WINDOW_OPENED:
+        exit()
+      window.close()
       break
     if event == "Import":
       find_datasets()
       title = values["_NEW_DATASET_TITLE_"]
       src = values["_NEW_DATASET_PATH_"]
-      if not isdir(src):
-        continue
-      break
-  if isdir(src):
-    idx = len(DATASETS) + 1
-    dataset_path = join(ROOT, "data", f"dataset{idx}")
-    mkdir(dataset_path)
-    if len(title) > 0:
-      with open(join(dataset_path, "title.txt"), "w") as fo:
-        fo.write(title)
-    copy_time = dp.batch_copy(src, join(dataset_path, "original"))
-    resize_time = dp.batch_resize(join(dataset_path, "original"), join(dataset_path, "resized"), (128, 128))
-    vectorize_time = dp.batch_vectorize(join(dataset_path, "resized"), join(dataset_path, "database.pickle"), (128, 128))
-    window.close()
-    return (idx, {"c": copy_time, "r": resize_time, "v": vectorize_time})
-  else:
-    window.close()
-    return (-1, {})
+      if isdir(src):
+        idx = len(DATASETS) + 1
+        dataset_path = join(ROOT, "data", f"dataset{idx}")
+        mkdir(dataset_path)
+        if len(title) > 0:
+          with open(join(dataset_path, "title.txt"), "w") as fo:
+            fo.write(title)
+        copy_time = dp.batch_copy(src, join(dataset_path, "original"))
+        resize_time = dp.batch_resize(join(dataset_path, "original"), join(dataset_path, "resized"), (128, 128))
+        vectorize_time = dp.batch_vectorize(join(dataset_path, "resized"), join(dataset_path, "database.pickle"), (128, 128))
+        window.close()
+        find_datasets()
+        load_dataset(idx)
+        if WINDOW_OPENED:
+          WINDOW["_MENU_"].update(menu_definition=generate_menu())
+          WINDOW["_DATASET_"].update(get_dataset_title(idx))
+        sg.Popup(
+          f"The dataset '{get_dataset_title(idx)}' has been imported successfully.\n\n" +
+          f"Size: {DATABASE['size']} images\n\n" +
+          f"Copy Time: {'{:.2f}'.format(copy_time)} seconds\n" +
+          f"Resize Time: {'{:.2f}'.format(resize_time)} seconds\n" +
+          f"Vectorize Time: {'{:.2f}'.format(vectorize_time)} seconds\n", 
+          title="Dataset Imported", 
+          keep_on_top=True
+        )
+        break
+  
 
 def load_dataset(idx):
   global SELECTED_DATASET, DATABASE
@@ -244,13 +258,18 @@ def generate_menu():
     menu_datasets.append(f"{'!' if d['idx'] == SELECTED_DATASET else ''}{d['title']}{' (selected)' if d['idx'] == SELECTED_DATASET else ''}::_DATASET-{d['idx']}_")
   return ['&File', ['&Import Dataset...', '&Select Dataset', menu_datasets]], ['&Edit']
 
-# WINDOW LAYOUT
-
-load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
+# INITIALISE
 
 find_datasets()
 
+if len(DATASETS) == 0:
+  import_dataset()
+
+load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
+
 MENU = generate_menu()
+
+# WINDOW LAYOUT
 
 MATRIX_WEIGHT_LEFT_COLUMN = [
   [sg.Slider(default_value=QUERY["params"]["w_quad"][0], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W11")],
@@ -344,6 +363,8 @@ LAYOUT = [
 
 WINDOW = sg.Window("Wavelet CBIR Search Engine", LAYOUT)
 
+WINDOW_OPENED = True
+
 while True:
   event, values = WINDOW.read()
   if event == "Exit" or event == sg.WIN_CLOSED:
@@ -360,20 +381,7 @@ while True:
     filename = export_results()
     sg.Popup(f"Results exported to 'results/{filename}'.", title="Export Complete", keep_on_top=True)
   if event == "Import Dataset...":
-    idx, stats = import_dataset()
-    if idx != -1:
-      find_datasets()
-      title = get_dataset_title(idx)
-      load_dataset(idx)
-      WINDOW["_MENU_"].update(menu_definition=generate_menu())
-      WINDOW["_DATASET_"].update(title)
-      sg.Popup(
-        f"The dataset '{title}' has been imported successfully.\n\n" +
-        f"Copy Time: {'{:.2f}'.format(stats['c'])} seconds\n" +
-        f"Resize Time: {'{:.2f}'.format(stats['r'])} seconds\n" +
-        f"Vectorize Time: {'{:.2f}'.format(stats['v'])} seconds\n", 
-        title="Dataset Imported", keep_on_top=True
-      )
+    import_dataset()
   if "_DATASET-" in event:
     idx = int(event[event.index("_DATASET-") + 9:len(event)-1])
     title = get_dataset_title(idx)
@@ -381,6 +389,6 @@ while True:
     clear_results()
     WINDOW["_MENU_"].update(menu_definition=generate_menu())
     WINDOW["_DATASET_"].update(title)
-    sg.Popup(f"The dataset '{title}' has been loaded successfully.", title="Dataset Selected", keep_on_top=True)
+    sg.Popup(f"The dataset '{title}' has been loaded successfully.\n\nSize: {DATABASE['size']} images\n", title="Dataset Selected", keep_on_top=True)
 
 WINDOW.close()
