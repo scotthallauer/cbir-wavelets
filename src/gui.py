@@ -25,13 +25,17 @@ ROOT = "/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]"
 
 IMAGE_DIM = (128, 128)
 
-DATABASE = dp.load_database(join(ROOT, "data/database.pickle"))
+DATABASE = None
+
+SELECTED_DATASET = None
+
+DATASETS = []
 
 T = Timer()
 
 QUERY = {
   "image": {
-    "path": join(ROOT, "data/query1.jpg"),
+    "path": join(ROOT, "query/query1.jpg"),
     "small": None,
     "large": None
   },
@@ -46,7 +50,7 @@ QUERY = {
 
 RESULTS = []
 
-BLANK_IMAGE = ip.img2bytes(ip.resize_image(cv2.imread(join(ROOT, "media/blank.png")), (width(0.137), width(0.137))))
+BLANK_IMAGE = ip.img2bytes(ip.resize_image(cv2.imread(join(ROOT, "src/media/blank.png")), (width(0.137), width(0.137))))
 
 # FUNCTIONS
 
@@ -54,7 +58,7 @@ def load_query_image(values):
   QUERY["image"]["path"] = values["QUERY_PATH"]
   image = cv2.imread(QUERY["image"]["path"])
   QUERY["image"]["small"] = ip.resize_image(image, IMAGE_DIM)
-  QUERY["image"]["large"] = ip.resize_image(image, (width(0.2), width(0.2)))
+  QUERY["image"]["large"] = ip.resize_image(image, (width(0.19), width(0.19)))
 
 def display_query_image():
   WINDOW["QUERY_IMAGE"].update(data=ip.img2bytes(QUERY["image"]["large"]))
@@ -92,7 +96,7 @@ def process_query():
     passed, score = ic.pair2score(query_vector, candidate["vector"], QUERY["params"])
     if passed:
       RESULTS.append({
-        "image": ip.resize_image(cv2.imread(join(ROOT, f"data/original/{candidate['file']}")), (width(0.137), width(0.137))),
+        "image": ip.resize_image(cv2.imread(join(ROOT, "data", f"dataset{SELECTED_DATASET}", "original", candidate['file'])), (width(0.137), width(0.137))),
         "score": score
       })
   RESULTS = sorted(RESULTS, key=lambda r: r["score"])
@@ -109,6 +113,14 @@ def display_results():
     WINDOW["_EXPORT_"].update(visible=False)
   else:
     WINDOW["_EXPORT_"].update(visible=True)
+
+def clear_results():
+  global RESULTS
+  RESULTS.clear()
+  for i in range(50):
+    WINDOW[f"RESULT_IMAGE_{i}"].update(data=BLANK_IMAGE)
+  WINDOW["_EXPORT_"].update(visible=False)
+  WINDOW["_STATS_"].update(visible=False)
 
 def export_results():
   num_images = min(len(RESULTS), QUERY["params"]["limit"]) + 1
@@ -128,7 +140,7 @@ def export_results():
         axs[ax_idx].set_title((f"Result {i}" if i > 0 else "Query"), fontsize=10, fontweight=("normal" if i > 0 else "bold"))
         axs[ax_idx].set_xticks([])
         axs[ax_idx].set_yticks([])
-    plt.figtext(0.5, 0.07, f"Query Parameters: {str(QUERY['params'])}", wrap=True, horizontalalignment="center", fontsize=12)
+    plt.figtext(0.5, 0.07, f"Dataset: {get_dataset_title(SELECTED_DATASET)}\nQuery Parameters: {str(QUERY['params'])}", wrap=True, horizontalalignment="center", fontsize=12)
     idx = 1
     results_path = join(ROOT, "results")
     if not isdir(results_path):
@@ -143,9 +155,102 @@ def display_stats():
     f"Showing {min(len(RESULTS), QUERY['params']['limit'])} of {len(RESULTS)} results ({'{:.2f}'.format(T.time())} seconds)", 
     visible=True)
 
+def find_datasets():
+  global DATASETS
+  data_path = join(ROOT, "data")
+  if not isdir(data_path):
+    mkdir(data_path)
+  idx = 1
+  DATASETS.clear()
+  while isdir(join(data_path, f"dataset{idx}")):
+    title_path = join(data_path, f"dataset{idx}", "title.txt")
+    if isfile(title_path):
+      with open(title_path) as fo:
+        title = fo.readline().rstrip()
+    else:
+      title = f"Dataset {idx}"
+    DATASETS.append({"title": title, "idx": idx})
+    idx += 1
+  if SELECTED_DATASET is None and len(DATASETS) > 0:
+    load_dataset(1)
+
+def import_dataset():
+  input_left_column = [
+    [
+      sg.Text("Title")
+    ],
+    [
+      sg.Text("Path *")
+    ]
+  ]
+  input_right_column = [
+    [
+      sg.Input("", size=(35, 1), enable_events=True, key="_NEW_DATASET_TITLE_")
+    ],
+    [
+      sg.Input("", size=(26, 1), enable_events=True, key="_NEW_DATASET_PATH_"),
+      sg.FolderBrowse()
+    ]
+  ]
+  layout = [
+    [sg.Text("To import a dataset, please provide a directory containing only\nimages. These images will be copied into the application and\ntheir feature vectors will be extracted.")],
+    [sg.Text("You can also optionally provide a title for your dataset.")],
+    [sg.Frame(title="Dataset Information", font=("Helvetica", 11), pad=(10, 10), layout=[[sg.Column(input_left_column, pad=(10, 10)), sg.Column(input_right_column, pad=(10, 10))]])],
+    [sg.Button("Import", pad=(10, 5)), sg.Button("Cancel")]
+  ]
+  window = sg.Window("Import Dataset", layout, modal=True)
+  choice = None
+  title, src = "", ""
+  while True:
+    event, values = window.read()
+    if event == "Exit" or event == "Cancel" or event == sg.WIN_CLOSED:
+      break
+    if event == "Import":
+      find_datasets()
+      title = values["_NEW_DATASET_TITLE_"]
+      src = values["_NEW_DATASET_PATH_"]
+      if not isdir(src):
+        continue
+      break
+  if isdir(src):
+    idx = len(DATASETS) + 1
+    dataset_path = join(ROOT, "data", f"dataset{idx}")
+    mkdir(dataset_path)
+    if len(title) > 0:
+      with open(join(dataset_path, "title.txt"), "w") as fo:
+        fo.write(title)
+    copy_time = dp.batch_copy(src, join(dataset_path, "original"))
+    resize_time = dp.batch_resize(join(dataset_path, "original"), join(dataset_path, "resized"), (128, 128))
+    vectorize_time = dp.batch_vectorize(join(dataset_path, "resized"), join(dataset_path, "database.pickle"), (128, 128))
+    window.close()
+    return (idx, {"c": copy_time, "r": resize_time, "v": vectorize_time})
+  else:
+    window.close()
+    return (-1, {})
+
+def load_dataset(idx):
+  global SELECTED_DATASET, DATABASE
+  SELECTED_DATASET = idx
+  DATABASE = dp.load_database(join(ROOT, "data", f"dataset{idx}", "database.pickle"))
+
+def get_dataset_title(idx):
+  for d in DATASETS:
+    if d["idx"] == idx:
+      return d["title"]
+
+def generate_menu():
+  menu_datasets = []
+  for d in DATASETS:
+    menu_datasets.append(f"{'!' if d['idx'] == SELECTED_DATASET else ''}{d['title']}{' (selected)' if d['idx'] == SELECTED_DATASET else ''}::_DATASET-{d['idx']}_")
+  return ['&File', ['&Import Dataset...', '&Select Dataset', menu_datasets]], ['&Edit']
+
 # WINDOW LAYOUT
 
 load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
+
+find_datasets()
+
+MENU = generate_menu()
 
 MATRIX_WEIGHT_LEFT_COLUMN = [
   [sg.Slider(default_value=QUERY["params"]["w_quad"][0], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W11")],
@@ -184,11 +289,17 @@ QUERY_COLUMN = [
     sg.Text("Query", font=("Helvetica", 20, "bold")),
   ],
   [
-    sg.Image(data=ip.img2bytes(QUERY["image"]["large"]), pad=(width(0.02), 5), key="QUERY_IMAGE")
+    sg.Text("Selected Dataset:", font=("Helvetica", 10, "bold")),
+    sg.Text(get_dataset_title(SELECTED_DATASET), pad=((5, 0), 5), key="_DATASET_"),
+    sg.Text("[?]", font=("Helvetica", 8), pad=((2, 5), 5), tooltip="To change dataset, go to File > Select Dataset")
+  ],
+  [
+    sg.Image(data=ip.img2bytes(QUERY["image"]["large"]), pad=(width(0.03), 5), key="QUERY_IMAGE")
   ],
   [
     sg.Text("Path"),
-    sg.Input(QUERY["image"]["path"], size=(33, 1), enable_events=True, key="QUERY_PATH"),
+    sg.Input(QUERY["image"]["path"], size=(23, 1), enable_events=True, key="QUERY_PATH"),
+    sg.FileBrowse(),
     sg.Button("Load")
   ],
   [
@@ -199,7 +310,7 @@ QUERY_COLUMN = [
     sg.Frame(title="Selection Settings", font=("Helvetica", 11), pad=((8, 5), 5), layout=SELECTION_SETTING_FRAME),
   ],
   [
-    sg.Button("Search", pad=(5, 10), expand_x=True)
+    sg.Button("Search", pad=((5, 12), 10), expand_x=True)
   ]
 ]
 
@@ -221,6 +332,7 @@ for row in range(10):
 
 
 LAYOUT = [
+  [sg.Menu(MENU, font='Helvetica', pad=(10,10), key="_MENU_")],
   [
     sg.Column(QUERY_COLUMN, size=(width(0.25), height(1))),
     sg.VSeparator(),
@@ -246,6 +358,29 @@ while True:
     display_stats()
   if event == "_EXPORT_":
     filename = export_results()
-    sg.Popup(f"Results exported to 'results/{filename}'", title="Export Complete", keep_on_top=True)
+    sg.Popup(f"Results exported to 'results/{filename}'.", title="Export Complete", keep_on_top=True)
+  if event == "Import Dataset...":
+    idx, stats = import_dataset()
+    if idx != -1:
+      find_datasets()
+      title = get_dataset_title(idx)
+      load_dataset(idx)
+      WINDOW["_MENU_"].update(menu_definition=generate_menu())
+      WINDOW["_DATASET_"].update(title)
+      sg.Popup(
+        f"The dataset '{title}' has been imported successfully.\n\n" +
+        f"Copy Time: {'{:.2f}'.format(stats['c'])} seconds\n" +
+        f"Resize Time: {'{:.2f}'.format(stats['r'])} seconds\n" +
+        f"Vectorize Time: {'{:.2f}'.format(stats['v'])} seconds\n", 
+        title="Dataset Imported", keep_on_top=True
+      )
+  if "_DATASET-" in event:
+    idx = int(event[event.index("_DATASET-") + 9:len(event)-1])
+    title = get_dataset_title(idx)
+    load_dataset(idx)
+    clear_results()
+    WINDOW["_MENU_"].update(menu_definition=generate_menu())
+    WINDOW["_DATASET_"].update(title)
+    sg.Popup(f"The dataset '{title}' has been loaded successfully.", title="Dataset Selected", keep_on_top=True)
 
 WINDOW.close()

@@ -1,15 +1,33 @@
 import pickle
 import image_processor as ip
-from os import listdir
+from os import listdir, mkdir
 from os.path import join, isdir, isfile
+from shutil import copyfile
 from timer import Timer
 
 t = Timer()
 
+def batch_copy(src, dst):
+  t.start()
+  files = [f for f in listdir(src) if isfile(join(src, f))]
+  if not isdir(dst):
+    mkdir(dst)
+  print(f'Copying {len(files)} files...')
+  for f in files:
+    try:
+      copyfile(join(src, f), join(dst, f))
+    except:
+      print(f'Copying \'{f}\' failed.')
+  print(f'Complete.')
+  t.stop()
+  return t.time()
+
 def batch_resize(src, dst, dim):
   t.start()
   files = [f for f in listdir(src) if isfile(join(src, f))]
-  print(f'Processing {len(files)} files...')
+  if not isdir(dst):
+    mkdir(dst)
+  print(f'Resizing {len(files)} files...')
   for f in files:
     try:
       image = ip.load_image(join(src, f))
@@ -24,7 +42,7 @@ def batch_resize(src, dst, dim):
 def batch_vectorize(src, filename, dim):
   t.start()
   files = [f for f in listdir(src) if isfile(join(src, f))]
-  print(f'Processing {len(files)} files...')
+  print(f'Vectorizing {len(files)} files...')
   database = {}
   database["size"] = 0
   database["image"] = []
