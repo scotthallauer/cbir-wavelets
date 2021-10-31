@@ -9,21 +9,23 @@ from os import mkdir, getcwd
 from os.path import join, isfile, isdir
 from timer import Timer
 
-# WINDOW SETTINGS
+# CONFIGURABLE PARAMETERS
 
 WINDOW_DIM = (1200, 700)
 
-def width(proportion):
-  return math.floor(WINDOW_DIM[0] * proportion)
+IMAGE_DIM = (128, 128)
 
-def height(proportion):
-  return math.floor(WINDOW_DIM[1] * proportion)
+DEFAULT_PARAMS = {
+  "percent": 50,
+  "threshold": 100000,
+  "w_quad": [1,1,1,1],
+  "w_comp": [1,2,2],
+  "limit": 20
+}
 
-# GLOBAL PARAMETERS
+# INTERNAL PARAMETERS
 
 ROOT = getcwd()
-
-IMAGE_DIM = (128, 128)
 
 DATABASE = None
 
@@ -42,19 +44,25 @@ QUERY = {
     "large": None
   },
   "params": {
-    "percent": 50,
-    "threshold": 100000,
-    "w_quad": [1,1,1,1],
-    "w_comp": [1,2,2],
-    "limit": 20
+    "percent": DEFAULT_PARAMS["percent"],
+    "threshold": DEFAULT_PARAMS["threshold"],
+    "w_quad": DEFAULT_PARAMS["w_quad"],
+    "w_comp": DEFAULT_PARAMS["w_comp"],
+    "limit": DEFAULT_PARAMS["limit"]
   }
 }
 
 RESULTS = []
 
-BLANK_IMAGE = ip.img2bytes(ip.resize_image(cv2.imread(join(ROOT, "src/media/blank.png")), (width(0.137), width(0.137))))
+BLANK_IMAGE = ip.img2bytes(ip.resize_image(cv2.imread(join(ROOT, "src/media/blank.png")), (math.floor(WINDOW_DIM[0] * 0.137), math.floor(WINDOW_DIM[0] * 0.137))))
 
 # FUNCTIONS
+
+def width(proportion):
+  return math.floor(WINDOW_DIM[0] * proportion)
+
+def height(proportion):
+  return math.floor(WINDOW_DIM[1] * proportion)
 
 def load_query_image(values):
   QUERY["image"]["path"] = values["QUERY_PATH"]
@@ -222,8 +230,8 @@ def import_dataset():
           with open(join(dataset_path, "title.txt"), "w") as fo:
             fo.write(title)
         copy_time = dp.batch_copy(src, join(dataset_path, "original"))
-        resize_time = dp.batch_resize(join(dataset_path, "original"), join(dataset_path, "resized"), (128, 128))
-        vectorize_time = dp.batch_vectorize(join(dataset_path, "resized"), join(dataset_path, "database.pickle"), (128, 128))
+        resize_time = dp.batch_resize(join(dataset_path, "original"), join(dataset_path, "resized"), IMAGE_DIM)
+        vectorize_time = dp.batch_vectorize(join(dataset_path, "resized"), join(dataset_path, "database.pickle"), IMAGE_DIM)
         window.close()
         find_datasets()
         load_dataset(idx)
