@@ -353,7 +353,7 @@ for row in range(10):
 LAYOUT = [
   [sg.Menu(MENU, font='Helvetica', pad=(10,10), key="_MENU_")],
   [
-    sg.Column(QUERY_COLUMN, size=(width(0.25), height(1))),
+    sg.Column(QUERY_COLUMN, size=(width(0.25), height(1)), scrollable=True),
     sg.VSeparator(),
     sg.Column(RESULTS_COLUMN, size=(width(0.75), height(1)), scrollable=True, vertical_scroll_only=True),
   ]
