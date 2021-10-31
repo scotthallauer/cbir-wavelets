@@ -313,7 +313,7 @@ QUERY_COLUMN = [
     sg.Text("[?]", font=("Helvetica", 8), pad=((2, 5), 5), tooltip="To change dataset, go to File > Select Dataset")
   ],
   [
-    sg.Image(data=ip.img2bytes(QUERY["image"]["large"]), pad=(width(0.03), 5), key="QUERY_IMAGE")
+    sg.Column([[sg.Image(data=ip.img2bytes(QUERY["image"]["large"]), key="QUERY_IMAGE")]], justification='center')
   ],
   [
     sg.Text("Path"),
@@ -353,7 +353,7 @@ for row in range(10):
 LAYOUT = [
   [sg.Menu(MENU, font='Helvetica', pad=(10,10), key="_MENU_")],
   [
-    sg.Column(QUERY_COLUMN, size=(width(0.25), height(1)), scrollable=True),
+    sg.Column(QUERY_COLUMN),
     sg.VSeparator(),
     sg.Column(RESULTS_COLUMN, size=(width(0.75), height(1)), scrollable=True, vertical_scroll_only=True),
   ]
