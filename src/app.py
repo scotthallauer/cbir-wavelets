@@ -256,7 +256,7 @@ def generate_menu():
   menu_datasets = []
   for d in DATASETS:
     menu_datasets.append(f"{'!' if d['idx'] == SELECTED_DATASET else ''}{d['title']}{' (selected)' if d['idx'] == SELECTED_DATASET else ''}::_DATASET-{d['idx']}_")
-  return ['&File', ['&Import Dataset...', '&Select Dataset', menu_datasets]], ['&Edit']
+  return ['&File', ['&Import Dataset...', '&Select Dataset', menu_datasets]], ['&Help']
 
 # INITIALISE
 
@@ -318,7 +318,7 @@ QUERY_COLUMN = [
   [
     sg.Text("Path"),
     sg.Input(QUERY["image"]["path"], size=(23, 1), enable_events=True, key="QUERY_PATH"),
-    sg.FileBrowse(initial_folder=join(ROOT, "src/media/query")),
+    sg.FileBrowse(initial_folder=join(ROOT, "src/media/query"), key="_FILE_BROWSE_"),
     sg.Button("Load")
   ],
   [
