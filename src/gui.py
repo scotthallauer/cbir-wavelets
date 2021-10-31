@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import dataset_processor as dp
 import image_processor as ip
 import image_comparator as ic
-from os.path import join
+from os import mkdir
+from os.path import join, isfile, isdir
 from timer import Timer
 
 # WINDOW SETTINGS
@@ -45,7 +46,7 @@ QUERY = {
 
 RESULTS = []
 
-BLANK_IMAGE = ip.resize_image(cv2.imread(join(ROOT, "media/blank.jpg")), (width(0.137), width(0.137)))
+BLANK_IMAGE = ip.img2bytes(ip.resize_image(cv2.imread(join(ROOT, "media/blank.png")), (width(0.137), width(0.137))))
 
 # FUNCTIONS
 
@@ -103,28 +104,39 @@ def display_results():
       WINDOW[f"RESULT_IMAGE_{i}"].update(data=ip.img2bytes(RESULTS[i]["image"]))
       WINDOW[f"RESULT_IMAGE_{i}"].set_tooltip(str(RESULTS[i]["score"]))
     else:
-      WINDOW[f"RESULT_IMAGE_{i}"].update(data=ip.img2bytes(BLANK_IMAGE))
+      WINDOW[f"RESULT_IMAGE_{i}"].update(data=BLANK_IMAGE)
   if len(RESULTS) == 0:
     WINDOW["_EXPORT_"].update(visible=False)
   else:
     WINDOW["_EXPORT_"].update(visible=True)
 
 def export_results():
-  num_images = min(len(RESULTS), QUERY["params"]["limit"])
+  num_images = min(len(RESULTS), QUERY["params"]["limit"]) + 1
+  IMAGES = [QUERY["image"]["large"]] + [r["image"] for r in RESULTS[:(num_images-1)]]
   if num_images > 0:
     cols = 5
     rows = math.ceil(num_images/cols)
     fig, axs = plt.subplots(rows, cols, figsize=(cols*3,rows*3), dpi=100)
     for i in range(rows*cols):
+      ax_idx = (math.floor(i/5), i%5) if rows > 1 else i%5
       if i >= num_images:
-        axs[math.floor(i/5), i%5].axis('off')
+        axs[ax_idx].axis('off')
       else:
-        axs[math.floor(i/5), i%5].imshow(cv2.cvtColor(RESULTS[i]["image"], cv2.COLOR_BGR2RGB), interpolation="bilinear", cmap=plt.cm.gray)
-        axs[math.floor(i/5), i%5].set_title(f"Image {i + 1}", fontsize=10)
-        axs[math.floor(i/5), i%5].set_xticks([])
-        axs[math.floor(i/5), i%5].set_yticks([])
-    fig.tight_layout()
-    plt.savefig(join(ROOT, "data/results.png"))
+        if i == 0:
+          [x.set_linewidth(2) for x in axs[ax_idx].spines.values()]
+        axs[ax_idx].imshow(cv2.cvtColor(IMAGES[i], cv2.COLOR_BGR2RGB), interpolation="bilinear", cmap=plt.cm.gray)
+        axs[ax_idx].set_title((f"Result {i}" if i > 0 else "Query"), fontsize=10, fontweight=("normal" if i > 0 else "bold"))
+        axs[ax_idx].set_xticks([])
+        axs[ax_idx].set_yticks([])
+    plt.figtext(0.5, 0.07, f"Query Parameters: {str(QUERY['params'])}", wrap=True, horizontalalignment="center", fontsize=12)
+    idx = 1
+    results_path = join(ROOT, "results")
+    if not isdir(results_path):
+      mkdir(results_path)
+    while isfile(join(results_path, f"results{idx}.png")):
+      idx += 1
+    plt.savefig(join(results_path, f"results{idx}.png"), bbox_inches="tight")
+    return f"results{idx}.png"
 
 def display_stats():
   WINDOW["_STATS_"].update(
@@ -204,7 +216,7 @@ RESULTS_COLUMN = [
 for row in range(10):
   result_images = []
   for col in range(5):
-    result_images.append(sg.Image(data=ip.img2bytes(BLANK_IMAGE), key=f"RESULT_IMAGE_{row*5 + col}"))
+    result_images.append(sg.Image(data=BLANK_IMAGE, key=f"RESULT_IMAGE_{row*5 + col}"))
   RESULTS_COLUMN.append(result_images)
 
 
@@ -233,6 +245,7 @@ while True:
     display_results()
     display_stats()
   if event == "_EXPORT_":
-    export_results()
+    filename = export_results()
+    sg.Popup(f"Results exported to 'results/{filename}'", title="Export Complete", keep_on_top=True)
 
 WINDOW.close()
