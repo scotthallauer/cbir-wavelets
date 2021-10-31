@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import dataset_processor as dp
 import image_processor as ip
 import image_comparator as ic
-from os import mkdir
+from os import mkdir, getcwd
 from os.path import join, isfile, isdir
 from timer import Timer
 
@@ -21,7 +21,7 @@ def height(proportion):
 
 # GLOBAL PARAMETERS
 
-ROOT = "/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]"
+ROOT = getcwd()
 
 IMAGE_DIM = (128, 128)
 

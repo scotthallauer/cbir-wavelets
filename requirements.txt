@@ -1,0 +1,5 @@
+numpy==1.21.3
+opencv-python==4.5.4.58
+pywavelets==1.1.1
+matplotlib==3.4.3
+pysimplegui==4.53.0
