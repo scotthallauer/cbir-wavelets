@@ -11,20 +11,30 @@ def save_image(image, filename):
 def resize_image(image, dim):
   return cv2.resize(image, dim, interpolation = cv2.INTER_LINEAR)
 
-def get_rgb(image):
+# Default colour soace
+def get_rgb_channels(image):
   b, g, r = cv2.split(image)
   return (r, g, b)
 
-def get_icc(image):
+# Component colour space
+def get_cmp_channels(image):
   cmp_max = 255
-  r, g, b = get_rgb(image)
+  r, g, b = get_rgb_channels(image)
   i = (r + g + b) / 3 # intensity
   c1 = (r + (cmp_max - b)) / 2 # contrast 1
-  c2 = (r + 2 * (cmp_max - g) + b) / 4 # contrast 2
+  c2 = (r + 2*(cmp_max - g) + b) / 4 # contrast 2
   return (i, c1, c2)
 
-def get_dwt(components, level):
-  c1, c2, c3 = components
+# Opponent colour space
+def get_opp_channels(image):
+  r, g, b = get_rgb_channels(image)
+  rg = r - 2*g + b
+  by = -r - g + 2*b
+  wb = r + g + b
+  return (rg, by, wb)
+
+def get_dwt(channels, level):
+  c1, c2, c3 = channels
   coeff_c1 = pywt.dwt2(c1, 'bior1.3')
   coeff_c2 = pywt.dwt2(c2, 'bior1.3')
   coeff_c3 = pywt.dwt2(c3, 'bior1.3')
@@ -53,8 +63,8 @@ def img2vec(filename, dim):
   image = load_image(filename)
   if image.shape[:2] != dim:
     image = resize_image(image, dim)
-  components = get_icc(image)
-  dwt = get_dwt(components, 5)
+  channels = get_cmp_channels(image)
+  dwt = get_dwt(channels, 5)
   return get_feature_vector(dwt)
 
 def img2bytes(image):

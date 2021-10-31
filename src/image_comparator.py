@@ -1,10 +1,5 @@
 import numpy as np
 
-percent = 50
-distance_threshold = 100000
-w11, w12, w21, w22 = 3, 1, 1, 1
-wc = [1, 2, 2]
-
 def pass_threshold(query_vector, match_vector, percent):
   q = query_vector
   m = match_vector
