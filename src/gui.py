@@ -129,25 +129,25 @@ def display_stats():
 load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
 
 MATRIX_WEIGHT_LEFT_COLUMN = [
-  [sg.Slider(default_value=QUERY["params"]["w_quad"][0], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W11")],
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][0], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W11")],
   [sg.Text("w11", pad=(5, (0, 5)), justification="center", expand_x=True)],
-  [sg.Slider(default_value=QUERY["params"]["w_quad"][2], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W21")],
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][2], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W21")],
   [sg.Text("w21", pad=(5, (0, 5)), justification="center", expand_x=True)],
 ]
 
 MATRIX_WEIGHT_RIGHT_COLUMN = [
-  [sg.Slider(default_value=QUERY["params"]["w_quad"][1], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W12")],
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][1], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W12")],
   [sg.Text("w12", pad=(5, (0, 5)), justification="center", expand_x=True)],
-  [sg.Slider(default_value=QUERY["params"]["w_quad"][3], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W22")],
+  [sg.Slider(default_value=QUERY["params"]["w_quad"][3], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_W22")],
   [sg.Text("w22", pad=(5, (0, 5)), justification="center", expand_x=True)],
 ]
 
 COMPONENT_WEIGHT_FRAME = [
-  [sg.Slider(default_value=QUERY["params"]["w_comp"][0], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC1")],
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][0], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC1")],
   [sg.Text("wc1", pad=(5, (0, 5)), justification="center", expand_x=True)],
-  [sg.Slider(default_value=QUERY["params"]["w_comp"][1], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC2")],
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][1], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC2")],
   [sg.Text("wc2", pad=(5, (0, 5)), justification="center", expand_x=True)],
-  [sg.Slider(default_value=QUERY["params"]["w_comp"][2], range=(1,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC3")],
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][2], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC3")],
   [sg.Text("wc3", pad=(5, (0, 5)), justification="center", expand_x=True)],
 ]
 
