@@ -6,6 +6,7 @@ import dataset_processor as dp
 import image_processor as ip
 import image_comparator as ic
 from os.path import join
+from timer import Timer
 
 # WINDOW SETTINGS
 
@@ -24,6 +25,8 @@ ROOT = "/Users/scott/Local/VS Code Projects/scotthallauer[cbir-wavelets]"
 IMAGE_DIM = (128, 128)
 
 DATABASE = dp.load_database(join(ROOT, "data/database.pickle"))
+
+T = Timer()
 
 QUERY = {
   "image": {
@@ -81,6 +84,7 @@ def update_query(values):
 
 def process_query():
   global RESULTS
+  T.start()
   RESULTS.clear()
   query_vector = ip.img2vec(QUERY["image"]["path"], IMAGE_DIM)
   for candidate in DATABASE["image"]:
@@ -91,6 +95,8 @@ def process_query():
         "score": score
       })
   RESULTS = sorted(RESULTS, key=lambda r: r["score"])
+  T.stop()
+  return T.time()
 
 def display_results():
   for i in range(50):
@@ -176,7 +182,7 @@ QUERY_COLUMN = [
     sg.Frame(title="Matrix Weights", font=("Helvetica", 11), layout=[[sg.Column(MATRIX_WEIGHT_LEFT_COLUMN), sg.Column(MATRIX_WEIGHT_RIGHT_COLUMN)]])
   ],
   [
-    sg.Frame(title="Component Weights", font=("Helvetica", 11), pad=((5, 8), 5), layout=COMPONENT_WEIGHT_FRAME),
+    sg.Frame(title="Channel Weights", font=("Helvetica", 11), pad=((5, 8), 5), layout=COMPONENT_WEIGHT_FRAME),
     sg.Frame(title="Selection Settings", font=("Helvetica", 11), pad=((8, 5), 5), layout=SELECTION_SETTING_FRAME),
   ],
   [
@@ -219,8 +225,7 @@ while True:
     display_query_image()
   if event == "Search":
     update_query(values)
-    process_query()
-    print(len(RESULTS))
+    print(process_query())
     display_results()
   if event == "_EXPORT_":
     export_results()

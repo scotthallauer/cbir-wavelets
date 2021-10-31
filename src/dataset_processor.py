@@ -2,9 +2,13 @@ import pickle
 import image_processor as ip
 from os import listdir
 from os.path import join, isdir, isfile
+from timer import Timer
+
+t = Timer()
 
 def batch_resize(src, dst, dim):
-  files = [f for f in listdir(src) if isfile(join(src, f)) and f != '.DS_Store']
+  t.start()
+  files = [f for f in listdir(src) if isfile(join(src, f))]
   print(f'Processing {len(files)} files...')
   for f in files:
     try:
@@ -14,9 +18,12 @@ def batch_resize(src, dst, dim):
     except:
       print(f'Resizing \'{f}\' failed.')
   print(f'Complete.')
+  t.stop()
+  return t.time()
 
 def batch_vectorize(src, filename, dim):
-  files = [f for f in listdir(src) if isfile(join(src, f)) and f != '.DS_Store']
+  t.start()
+  files = [f for f in listdir(src) if isfile(join(src, f))]
   print(f'Processing {len(files)} files...')
   database = {}
   database["size"] = 0
@@ -33,6 +40,8 @@ def batch_vectorize(src, filename, dim):
       print(f'Vectorizing \'{f}\' failed.')
   pickle_dump(database, filename)
   print(f'Complete.')
+  t.stop()
+  return t.time()
 
 def pickle_dump(database, filename):
   with open(filename, 'wb') as fo:
