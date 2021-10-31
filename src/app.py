@@ -37,7 +37,7 @@ T = Timer()
 
 QUERY = {
   "image": {
-    "path": join(ROOT, "query/query1.jpg"),
+    "path": join(ROOT, "src/media/query/query1.jpg"),
     "small": None,
     "large": None
   },
@@ -318,7 +318,7 @@ QUERY_COLUMN = [
   [
     sg.Text("Path"),
     sg.Input(QUERY["image"]["path"], size=(23, 1), enable_events=True, key="QUERY_PATH"),
-    sg.FileBrowse(),
+    sg.FileBrowse(initial_folder=join(ROOT, "src/media/query")),
     sg.Button("Load")
   ],
   [
