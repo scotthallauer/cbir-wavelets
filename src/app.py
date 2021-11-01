@@ -92,7 +92,8 @@ def update_query(values):
   load_query_image(values)
   display_query_image()
   load_query_param(values)
-  print(QUERY["params"])
+  print(f"Dataset: {DM.get_title()}")
+  print(f"Parameters: {QUERY['params']}")
 
 def process_query():
   global RESULTS
@@ -108,14 +109,20 @@ def process_query():
       })
   RESULTS = sorted(RESULTS, key=lambda r: r["score"])
   T.stop()
+  if len(RESULTS) > 0:
+    print(f"Results: Showing {min(len(RESULTS), QUERY['params']['limit'])} of {len(RESULTS)} image(s) (with best match distance {round(RESULTS[0]['score'])})")
+  else:
+    print("Results: 0 images")
+  print(f"Time: {'{:.2f}'.format(T.time())} seconds")
 
 def display_results():
   for i in range(50):
     if i < min(len(RESULTS), QUERY["params"]["limit"]):
       WINDOW[f"RESULT_IMAGE_{i}"].update(data=ip.img2bytes(RESULTS[i]["image"]))
-      WINDOW[f"RESULT_IMAGE_{i}"].set_tooltip(f"Distance: {RESULTS[i]['score']}")
+      WINDOW[f"RESULT_IMAGE_{i}"].set_tooltip(f"Distance: {round(RESULTS[i]['score'])}")
     else:
-      WINDOW[f"RESULT_IMAGE_{i}"].update(data=BLANK_IMAGE)
+      WINDOW[f"RESULT_IMAGE_{i}"].update(data=BLANK_IMAGE,)
+      WINDOW[f"RESULT_IMAGE_{i}"].set_tooltip(None)
   if len(RESULTS) == 0:
     WINDOW["_EXPORT_"].update(visible=False)
   else:

@@ -11,7 +11,7 @@ class DatasetManager:
       try:
         mkdir(path)
       except:
-        raise DatasetError(f"The application data path '{path}' does not exist and could not be created.")
+        raise DatasetError(f"Application data path '{path}' does not exist and could not be created.")
     self._path = path
     self._image_dim = image_dim
     self._active = False
@@ -25,7 +25,7 @@ class DatasetManager:
       try:
         mkdir(self._path)
       except:
-        raise DatasetError(f"The application data path '{self._path}' does not exist and could not be created.")
+        raise DatasetError(f"Application data path '{self._path}' does not exist and could not be created.")
     self._active = False
     self._loaded = False
     self._datasets.clear()
@@ -45,6 +45,7 @@ class DatasetManager:
         title = f"Dataset {idx}"
       self._datasets.append({"idx": idx, "title": title})
     self._active = True
+    print(f"Discovered {len(self._datasets)} dataset(s).")
 
   def load_dataset(self, idx):
     if not self._active:
@@ -54,10 +55,11 @@ class DatasetManager:
       self._selected_idx = idx
       self.database = dp.load_database(join(self._path, f"dataset{idx}", "database.pickle"))
       self._loaded = True
+      print(f"Loaded dataset '{self.get_title()}' with {self.database['size']} image(s).")
 
   def import_dataset(self, src, title=None):
     if not isdir(src):
-      raise DatasetError(f"The dataset could not be imported because the source path '{src}' does not exist or is not a directory.")
+      raise DatasetError(f"Dataset could not be imported because the source path '{src}' does not exist or is not a directory.")
     idx = self.next_idx()
     title = title if title is not None else f"Dataset {idx}"
     dst = join(self._path, f"dataset{idx}")
@@ -68,6 +70,7 @@ class DatasetManager:
     copy_time = dp.batch_copy(src, join(dst, "original"))
     resize_time = dp.batch_resize(join(dst, "original"), join(dst, "resized"), self._image_dim)
     vectorize_time = dp.batch_vectorize(join(dst, "resized"), join(dst, "database.pickle"), self._image_dim)
+    print(f"Imported dataset '{title}'.")
     self.discover_datasets()
     self.load_dataset(idx)
     return {"c": copy_time, "r": resize_time, "v": vectorize_time}
