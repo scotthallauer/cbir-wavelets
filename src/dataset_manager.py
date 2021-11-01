@@ -44,6 +44,7 @@ class DatasetManager:
       else:
         title = f"Dataset {idx}"
       self._datasets.append({"idx": idx, "title": title})
+    self._datasets = sorted(self._datasets, key=lambda r: r["title"])
     self._active = True
     print(f"Discovered {len(self._datasets)} dataset(s).")
 
@@ -57,17 +58,25 @@ class DatasetManager:
       self._loaded = True
       print(f"Loaded dataset '{self.get_title()}' with {self.database['size']} image(s).")
 
-  def import_dataset(self, src, title=None):
+  def import_dataset(self, src, title=""):
     if not isdir(src):
       raise DatasetError(f"Dataset could not be imported because the source path '{src}' does not exist or is not a directory.")
     idx = self.next_idx()
-    title = title if title is not None else f"Dataset {idx}"
+    title = title if len(title) > 0 else f"Dataset {idx}"
     dst = join(self._path, f"dataset{idx}")
     mkdir(dst)
     if len(title) > 0:
       with open(join(dst, "title.txt"), "w") as fo:
         fo.write(title)
-    copy_time = dp.batch_copy(src, join(dst, "original"))
+    dirs = [src] + [join(src, d) for d in listdir(src) if isdir(join(src, d))]
+    print(f"Processing {len(dirs)} folder(s)...")
+    copy_time = 0
+    file_idx = 1
+    for d in dirs:
+      print(f"Processing folder '{d}'...")
+      c, i = dp.batch_copy(d, join(dst, "original"), file_idx)
+      file_idx = i
+      copy_time += c
     resize_time = dp.batch_resize(join(dst, "original"), join(dst, "resized"), self._image_dim)
     vectorize_time = dp.batch_vectorize(join(dst, "resized"), join(dst, "database.pickle"), self._image_dim)
     print(f"Imported dataset '{title}'.")

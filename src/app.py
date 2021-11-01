@@ -18,9 +18,9 @@ IMAGE_DIM = (128, 128)
 
 DEFAULT_PARAMS = {
   "percent": 50,
-  "threshold": 100000,
+  "threshold": 50000,
   "w_quad": [1,1,1,1],
-  "w_comp": [1,2,2],
+  "w_comp": [1,2,2,0,0,0],
   "limit": 20
 }
 
@@ -83,7 +83,10 @@ def load_query_param(values):
     "w_comp": [
       int(values["PARAM_WC1"]),
       int(values["PARAM_WC2"]),
-      int(values["PARAM_WC3"])
+      int(values["PARAM_WC3"]),
+      int(values["PARAM_WC4"]),
+      int(values["PARAM_WC5"]),
+      int(values["PARAM_WC6"])
     ],
     "limit": int(values["PARAM_LIMIT"])
   }
@@ -100,13 +103,18 @@ def process_query():
   T.start()
   RESULTS.clear()
   query_vector = ip.img2vec(QUERY["image"]["path"], IMAGE_DIM)
-  for candidate in DM.database["image"]:
+  progress = 0
+  for idx, candidate in enumerate(DM.database["image"]):
     passed, score = ic.pair2score(query_vector, candidate["vector"], QUERY["params"])
     if passed:
       RESULTS.append({
         "image": ip.resize_image(cv2.imread(join(DM.get_path(), "original", candidate['file'])), (width(0.137), width(0.137))),
         "score": score
       })
+    new_progress = round((idx/DM.database["size"])*10)*10
+    if progress != new_progress:
+      progress = new_progress
+      print(f"{progress}%")
   RESULTS = sorted(RESULTS, key=lambda r: r["score"])
   T.stop()
   if len(RESULTS) > 0:
@@ -188,7 +196,7 @@ def open_import_window():
     ]
   ]
   layout = [
-    [sg.Text("To import a dataset, please provide a directory containing only\nimages. These images will be copied into the application and\ntheir feature vectors will be extracted.")],
+    [sg.Text("To import a dataset, please provide a directory containing only\nimages (or sub-directories of images). These images will be copied\ninto the application and their feature vectors will be extracted.")],
     [sg.Text("You can also optionally provide a title for your dataset.")],
     [sg.Frame(title="Dataset Information", font=("Helvetica", 11), pad=(10, 10), layout=[[sg.Column(input_left_column, pad=(10, 10)), sg.Column(input_right_column, pad=(10, 10))]])],
     [sg.Button("Import", pad=(10, 5)), sg.Button("Cancel")]
@@ -204,14 +212,14 @@ def open_import_window():
       window.close()
       break
     if event == "Import":
-      title = values["_NEW_DATASET_TITLE_"]
+      title = values["_NEW_DATASET_TITLE_"][:20]
       src = values["_NEW_DATASET_PATH_"]
       try:
         stats = DM.import_dataset(src, title)
         window.close()
         if WINDOW_OPENED:
           WINDOW["_MENU_"].update(menu_definition=generate_menu())
-          WINDOW["_DATASET_"].update(DM.get_title())
+          WINDOW["_DATASET_"].update(f"{DM.get_title()} ({DM.database['size']} images)")
         sg.Popup(
           f"The dataset '{DM.get_title()}' has been imported successfully.\n\n" +
           f"Size: {DM.database['size']} images\n\n" +
@@ -261,7 +269,7 @@ MATRIX_WEIGHT_RIGHT_COLUMN = [
   [sg.Text("w22", pad=(5, (0, 5)), justification="center", expand_x=True)],
 ]
 
-COMPONENT_WEIGHT_FRAME = [
+CMP_WEIGHT_FRAME = [
   [sg.Slider(default_value=QUERY["params"]["w_comp"][0], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC1")],
   [sg.Text("wc1", pad=(5, (0, 5)), justification="center", expand_x=True)],
   [sg.Slider(default_value=QUERY["params"]["w_comp"][1], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC2")],
@@ -270,10 +278,19 @@ COMPONENT_WEIGHT_FRAME = [
   [sg.Text("wc3", pad=(5, (0, 5)), justification="center", expand_x=True)],
 ]
 
+RGB_WEIGHT_FRAME = [
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][3], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC4")],
+  [sg.Text("wr", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][4], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC5")],
+  [sg.Text("wg", pad=(5, (0, 5)), justification="center", expand_x=True)],
+  [sg.Slider(default_value=QUERY["params"]["w_comp"][5], range=(0,5), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_WC6")],
+  [sg.Text("wb", pad=(5, (0, 5)), justification="center", expand_x=True)],
+]
+
 SELECTION_SETTING_FRAME = [
   [sg.Slider(default_value=QUERY["params"]["percent"], range=(1,100), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_PERCENT")],
   [sg.Text("percent", pad=(5, (0, 5)), justification="center", expand_x=True)],
-  [sg.Slider(default_value=QUERY["params"]["threshold"], range=(50000,1000000), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_THRESHOLD")],
+  [sg.Slider(default_value=QUERY["params"]["threshold"], range=(20000,1000000), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_THRESHOLD")],
   [sg.Text("threshold", pad=(5, (0, 5)), justification="center", expand_x=True)],
   [sg.Slider(default_value=QUERY["params"]["limit"], range=(1,50), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_LIMIT")],
   [sg.Text("max results", pad=(5, (0, 5)), justification="center", expand_x=True)],
@@ -285,7 +302,7 @@ QUERY_COLUMN = [
   ],
   [
     sg.Text("Selected Dataset:", font=("Helvetica", 10, "bold")),
-    sg.Text(DM.get_title(), pad=((5, 0), 5), key="_DATASET_"),
+    sg.Text(f"{DM.get_title()} ({DM.database['size']} images)", pad=((5, 0), 5), key="_DATASET_"),
     sg.Text("[?]", font=("Helvetica", 8), pad=((2, 5), 5), tooltip="To change dataset, go to File > Select Dataset")
   ],
   [
@@ -301,7 +318,11 @@ QUERY_COLUMN = [
     sg.Frame(title="Matrix Weights", font=("Helvetica", 11), layout=[[sg.Column(MATRIX_WEIGHT_LEFT_COLUMN), sg.Column(MATRIX_WEIGHT_RIGHT_COLUMN)]])
   ],
   [
-    sg.Frame(title="Channel Weights", font=("Helvetica", 11), pad=((5, 8), 5), layout=COMPONENT_WEIGHT_FRAME),
+    sg.TabGroup([
+      [sg.Tab("CMP", CMP_WEIGHT_FRAME)],
+      [sg.Tab("RGB", RGB_WEIGHT_FRAME)]
+    ]),
+    #sg.Frame(title="Channel Weights", font=("Helvetica", 11), pad=((5, 8), 5), layout=CMP_WEIGHT_FRAME),
     sg.Frame(title="Selection Settings", font=("Helvetica", 11), pad=((8, 5), 5), layout=SELECTION_SETTING_FRAME),
   ],
   [
@@ -363,7 +384,7 @@ while True:
     DM.load_dataset(idx)
     clear_results()
     WINDOW["_MENU_"].update(menu_definition=generate_menu())
-    WINDOW["_DATASET_"].update(DM.get_title())
+    WINDOW["_DATASET_"].update(f"{DM.get_title()} ({DM.database['size']} images)")
     sg.Popup(f"The dataset '{DM.get_title()}' has been loaded successfully.\n\nSize: {DM.database['size']} images\n", title="Dataset Selected", keep_on_top=True)
 
 WINDOW.close()

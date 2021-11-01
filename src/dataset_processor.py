@@ -1,40 +1,46 @@
 import pickle
 import image_processor as ip
 from os import listdir, mkdir
-from os.path import join, isdir, isfile
+from os.path import join, isdir, isfile, splitext
 from shutil import copyfile
 from timer import Timer
 
 t = Timer()
 
-def batch_copy(src, dst):
+def batch_copy(src, dst, idx):
   t.start()
-  files = [f for f in listdir(src) if isfile(join(src, f))]
+  files = [f for f in listdir(src) if isfile(join(src, f)) and ip.is_supported(f)]
   if not isdir(dst):
     mkdir(dst)
   print(f'Copying {len(files)} files...')
   for f in files:
     try:
-      copyfile(join(src, f), join(dst, f))
+      copyfile(join(src, f), join(dst, f"image{idx}{splitext(f)[1].lower()}"))
+      idx += 1
     except:
       print(f'Copying \'{f}\' failed.')
   print(f'Complete.')
   t.stop()
-  return t.time()
+  return (t.time(), idx)
 
 def batch_resize(src, dst, dim):
   t.start()
-  files = [f for f in listdir(src) if isfile(join(src, f))]
+  files = [f for f in listdir(src) if isfile(join(src, f)) and ip.is_supported(f)]
   if not isdir(dst):
     mkdir(dst)
   print(f'Resizing {len(files)} files...')
-  for f in files:
+  progress = 0
+  for idx, f in enumerate(files):
     try:
       image = ip.load_image(join(src, f))
       image = ip.resize_image(image, dim)
       ip.save_image(image, join(dst, f))
     except:
       print(f'Resizing \'{f}\' failed.')
+    new_progress = round((idx/len(files))*10)*10
+    if progress != new_progress:
+      progress = new_progress
+      print(f"{progress}%")
   print(f'Complete.')
   t.stop()
   return t.time()
@@ -46,7 +52,8 @@ def batch_vectorize(src, filename, dim):
   database = {}
   database["size"] = 0
   database["image"] = []
-  for f in files:
+  progress = 0
+  for idx, f in enumerate(files):
     try:
       vector = ip.img2vec(join(src, f), dim)
       database["size"] += 1
@@ -56,6 +63,10 @@ def batch_vectorize(src, filename, dim):
       })
     except:
       print(f'Vectorizing \'{f}\' failed.')
+    new_progress = round((idx/len(files))*10)*10
+    if progress != new_progress:
+      progress = new_progress
+      print(f"{progress}%")
   pickle_dump(database, filename)
   print(f'Complete.')
   t.stop()
