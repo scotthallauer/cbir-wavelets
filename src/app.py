@@ -330,7 +330,7 @@ LAYOUT = [
 
 # RUN
 
-WINDOW = sg.Window("Wavelet CBIR Search Engine", LAYOUT)
+WINDOW = sg.Window("CBIR Wavelet Search Engine", LAYOUT)
 
 WINDOW_OPENED = True
 
