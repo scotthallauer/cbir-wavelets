@@ -8,6 +8,7 @@ import image_comparator as ic
 from os import mkdir, getcwd
 from os.path import join, isfile, isdir
 from timer import Timer
+from dataset_manager import DatasetManager
 
 # CONFIGURABLE PARAMETERS
 
@@ -27,13 +28,9 @@ DEFAULT_PARAMS = {
 
 ROOT = getcwd()
 
-DATABASE = None
-
-SELECTED_DATASET = None
-
-DATASETS = []
-
 WINDOW_OPENED = False
+
+DM = DatasetManager(join(ROOT, "data"), IMAGE_DIM)
 
 T = Timer()
 
@@ -102,11 +99,11 @@ def process_query():
   T.start()
   RESULTS.clear()
   query_vector = ip.img2vec(QUERY["image"]["path"], IMAGE_DIM)
-  for candidate in DATABASE["image"]:
+  for candidate in DM.database["image"]:
     passed, score = ic.pair2score(query_vector, candidate["vector"], QUERY["params"])
     if passed:
       RESULTS.append({
-        "image": ip.resize_image(cv2.imread(join(ROOT, "data", f"dataset{SELECTED_DATASET}", "original", candidate['file'])), (width(0.137), width(0.137))),
+        "image": ip.resize_image(cv2.imread(join(DM.get_path(), "original", candidate['file'])), (width(0.137), width(0.137))),
         "score": score
       })
   RESULTS = sorted(RESULTS, key=lambda r: r["score"])
@@ -116,7 +113,7 @@ def display_results():
   for i in range(50):
     if i < min(len(RESULTS), QUERY["params"]["limit"]):
       WINDOW[f"RESULT_IMAGE_{i}"].update(data=ip.img2bytes(RESULTS[i]["image"]))
-      WINDOW[f"RESULT_IMAGE_{i}"].set_tooltip(str(RESULTS[i]["score"]))
+      WINDOW[f"RESULT_IMAGE_{i}"].set_tooltip(f"Distance: {RESULTS[i]['score']}")
     else:
       WINDOW[f"RESULT_IMAGE_{i}"].update(data=BLANK_IMAGE)
   if len(RESULTS) == 0:
@@ -150,7 +147,7 @@ def export_results():
         axs[ax_idx].set_title((f"Result {i}" if i > 0 else "Query"), fontsize=10, fontweight=("normal" if i > 0 else "bold"))
         axs[ax_idx].set_xticks([])
         axs[ax_idx].set_yticks([])
-    plt.figtext(0.5, 0.07, f"Dataset: {get_dataset_title(SELECTED_DATASET)}\nQuery Parameters: {str(QUERY['params'])}", wrap=True, horizontalalignment="center", fontsize=12)
+    plt.figtext(0.5, 0.07, f"Dataset: {DM.get_title()}\nQuery Parameters: {str(QUERY['params'])}", wrap=True, horizontalalignment="center", fontsize=12)
     idx = 1
     results_path = join(ROOT, "results")
     if not isdir(results_path):
@@ -165,26 +162,7 @@ def display_stats():
     f"Showing {min(len(RESULTS), QUERY['params']['limit'])} of {len(RESULTS)} results ({'{:.2f}'.format(T.time())} seconds)", 
     visible=True)
 
-def find_datasets():
-  global DATASETS
-  data_path = join(ROOT, "data")
-  if not isdir(data_path):
-    mkdir(data_path)
-  idx = 1
-  DATASETS.clear()
-  while isdir(join(data_path, f"dataset{idx}")):
-    title_path = join(data_path, f"dataset{idx}", "title.txt")
-    if isfile(title_path):
-      with open(title_path) as fo:
-        title = fo.readline().rstrip()
-    else:
-      title = f"Dataset {idx}"
-    DATASETS.append({"title": title, "idx": idx})
-    idx += 1
-  if SELECTED_DATASET is None and len(DATASETS) > 0:
-    load_dataset(1)
-
-def import_dataset():
+def open_import_window():
   input_left_column = [
     [
       sg.Text("Title")
@@ -219,59 +197,42 @@ def import_dataset():
       window.close()
       break
     if event == "Import":
-      find_datasets()
       title = values["_NEW_DATASET_TITLE_"]
       src = values["_NEW_DATASET_PATH_"]
-      if isdir(src):
-        idx = len(DATASETS) + 1
-        dataset_path = join(ROOT, "data", f"dataset{idx}")
-        mkdir(dataset_path)
-        if len(title) > 0:
-          with open(join(dataset_path, "title.txt"), "w") as fo:
-            fo.write(title)
-        copy_time = dp.batch_copy(src, join(dataset_path, "original"))
-        resize_time = dp.batch_resize(join(dataset_path, "original"), join(dataset_path, "resized"), IMAGE_DIM)
-        vectorize_time = dp.batch_vectorize(join(dataset_path, "resized"), join(dataset_path, "database.pickle"), IMAGE_DIM)
+      try:
+        stats = DM.import_dataset(src, title)
         window.close()
-        find_datasets()
-        load_dataset(idx)
         if WINDOW_OPENED:
           WINDOW["_MENU_"].update(menu_definition=generate_menu())
-          WINDOW["_DATASET_"].update(get_dataset_title(idx))
+          WINDOW["_DATASET_"].update(DM.get_title())
         sg.Popup(
-          f"The dataset '{get_dataset_title(idx)}' has been imported successfully.\n\n" +
-          f"Size: {DATABASE['size']} images\n\n" +
-          f"Copy Time: {'{:.2f}'.format(copy_time)} seconds\n" +
-          f"Resize Time: {'{:.2f}'.format(resize_time)} seconds\n" +
-          f"Vectorize Time: {'{:.2f}'.format(vectorize_time)} seconds\n", 
+          f"The dataset '{DM.get_title()}' has been imported successfully.\n\n" +
+          f"Size: {DM.database['size']} images\n\n" +
+          f"Copy Time: {'{:.2f}'.format(stats['c'])} seconds\n" +
+          f"Resize Time: {'{:.2f}'.format(stats['r'])} seconds\n" +
+          f"Vectorize Time: {'{:.2f}'.format(stats['v'])} seconds\n", 
           title="Dataset Imported", 
           keep_on_top=True
         )
         break
-  
-
-def load_dataset(idx):
-  global SELECTED_DATASET, DATABASE
-  SELECTED_DATASET = idx
-  DATABASE = dp.load_database(join(ROOT, "data", f"dataset{idx}", "database.pickle"))
-
-def get_dataset_title(idx):
-  for d in DATASETS:
-    if d["idx"] == idx:
-      return d["title"]
+      except Exception as e:
+        print(e)
+        continue
 
 def generate_menu():
   menu_datasets = []
-  for d in DATASETS:
-    menu_datasets.append(f"{'!' if d['idx'] == SELECTED_DATASET else ''}{d['title']}{' (selected)' if d['idx'] == SELECTED_DATASET else ''}::_DATASET-{d['idx']}_")
+  for d in DM.get_datasets():
+    menu_datasets.append(f"{'!' if DM.is_selected(d['idx']) else ''}{d['title']}{' (selected)' if DM.is_selected(d['idx']) else ''}::_DATASET-{d['idx']}_")
   return ['&File', ['&Import Dataset...', '&Select Dataset', menu_datasets]], ['&Help']
 
 # INITIALISE
 
-find_datasets()
+DM.discover_datasets()
 
-if len(DATASETS) == 0:
-  import_dataset()
+if len(DM.get_datasets()) == 0:
+  open_import_window()
+else:
+  DM.load_dataset(1)
 
 load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
 
@@ -317,7 +278,7 @@ QUERY_COLUMN = [
   ],
   [
     sg.Text("Selected Dataset:", font=("Helvetica", 10, "bold")),
-    sg.Text(get_dataset_title(SELECTED_DATASET), pad=((5, 0), 5), key="_DATASET_"),
+    sg.Text(DM.get_title(), pad=((5, 0), 5), key="_DATASET_"),
     sg.Text("[?]", font=("Helvetica", 8), pad=((2, 5), 5), tooltip="To change dataset, go to File > Select Dataset")
   ],
   [
@@ -389,14 +350,13 @@ while True:
     filename = export_results()
     sg.Popup(f"Results exported to 'results/{filename}'.", title="Export Complete", keep_on_top=True)
   if event == "Import Dataset...":
-    import_dataset()
+    open_import_window()
   if "_DATASET-" in event:
     idx = int(event[event.index("_DATASET-") + 9:len(event)-1])
-    title = get_dataset_title(idx)
-    load_dataset(idx)
+    DM.load_dataset(idx)
     clear_results()
     WINDOW["_MENU_"].update(menu_definition=generate_menu())
-    WINDOW["_DATASET_"].update(title)
-    sg.Popup(f"The dataset '{title}' has been loaded successfully.\n\nSize: {DATABASE['size']} images\n", title="Dataset Selected", keep_on_top=True)
+    WINDOW["_DATASET_"].update(DM.get_title())
+    sg.Popup(f"The dataset '{DM.get_title()}' has been loaded successfully.\n\nSize: {DM.database['size']} images\n", title="Dataset Selected", keep_on_top=True)
 
 WINDOW.close()
