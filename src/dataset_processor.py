@@ -12,15 +12,15 @@ def batch_copy(src, dst, idx):
   files = [f for f in listdir(src) if isfile(join(src, f)) and ip.is_supported(f)]
   if not isdir(dst):
     mkdir(dst)
-  print(f'Copying {len(files)} files...')
+  print(f"Copying {len(files)} files...")
   for f in files:
     try:
       copyfile(join(src, f), join(dst, f"image{idx}{splitext(f)[1].lower()}"))
       idx += 1
     except:
-      print(f'Copying \'{f}\' failed.')
-  print(f'Complete.')
+      print(f"Copying '{f}' failed.")
   t.stop()
+  print(f"Complete ({'{:.2f}'.format(t.time())} seconds).")
   return (t.time(), idx)
 
 def batch_resize(src, dst, dim):
@@ -28,7 +28,7 @@ def batch_resize(src, dst, dim):
   files = [f for f in listdir(src) if isfile(join(src, f)) and ip.is_supported(f)]
   if not isdir(dst):
     mkdir(dst)
-  print(f'Resizing {len(files)} files...')
+  print(f"Resizing {len(files)} files...")
   progress = 0
   for idx, f in enumerate(files):
     try:
@@ -36,19 +36,19 @@ def batch_resize(src, dst, dim):
       image = ip.resize_image(image, dim)
       ip.save_image(image, join(dst, f))
     except:
-      print(f'Resizing \'{f}\' failed.')
+      print(f"Resizing '{f}' failed.")
     new_progress = round((idx/len(files))*10)*10
     if progress != new_progress:
       progress = new_progress
       print(f"{progress}%")
-  print(f'Complete.')
   t.stop()
+  print(f"Complete ({'{:.2f}'.format(t.time())} seconds).")
   return t.time()
 
 def batch_vectorize(src, filename, dim):
   t.start()
   files = [f for f in listdir(src) if isfile(join(src, f))]
-  print(f'Vectorizing {len(files)} files...')
+  print(f"Vectorizing {len(files)} files...")
   database = {}
   database["size"] = 0
   database["image"] = []
@@ -62,14 +62,14 @@ def batch_vectorize(src, filename, dim):
         "vector": vector
       })
     except:
-      print(f'Vectorizing \'{f}\' failed.')
+      print(f"Vectorizing '{f}' failed.")
     new_progress = round((idx/len(files))*10)*10
     if progress != new_progress:
       progress = new_progress
       print(f"{progress}%")
   pickle_dump(database, filename)
-  print(f'Complete.')
   t.stop()
+  print(f"Complete ({'{:.2f}'.format(t.time())} seconds).")
   return t.time()
 
 def pickle_dump(database, filename):

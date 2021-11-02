@@ -20,7 +20,7 @@ def resize_image(image, dim):
 # Default colour soace
 def get_rgb_channels(image):
   b, g, r = cv2.split(image)
-  return (r, g, b)
+  return [r, g, b]
 
 # Component colour space
 def get_cmp_channels(image):
@@ -29,7 +29,7 @@ def get_cmp_channels(image):
   i = (r + g + b) / 3 # intensity
   c1 = (r + (cmp_max - b)) / 2 # contrast 1
   c2 = (r + 2*(cmp_max - g) + b) / 4 # contrast 2
-  return (i, c1, c2)
+  return [i, c1, c2]
 
 # Opponent colour space
 def get_opp_channels(image):
@@ -37,35 +37,28 @@ def get_opp_channels(image):
   rg = r - 2*g + b
   by = -r - g + 2*b
   wb = r + g + b
-  return (rg, by, wb)
+  return [rg, by, wb]
 
-def get_dwt(channels, level):
-  c1, c2, c3 = channels
-  coeff_c1 = pywt.dwt2(c1, 'bior1.3')
-  coeff_c2 = pywt.dwt2(c2, 'bior1.3')
-  coeff_c3 = pywt.dwt2(c3, 'bior1.3')
-  for i in range(level-1):
-    coeff_c1 = pywt.dwt2(coeff_c1[0], 'bior1.3')
-    coeff_c1 = np.array([coeff_c1[0], coeff_c1[1][0], coeff_c1[1][1], coeff_c1[1][2]])
-    coeff_c2 = pywt.dwt2(coeff_c2[0], 'bior1.3')
-    coeff_c2 = np.array([coeff_c2[0], coeff_c2[1][0], coeff_c2[1][1], coeff_c2[1][2]])
-    coeff_c3 = pywt.dwt2(coeff_c3[0], 'bior1.3')
-    coeff_c3 = np.array([coeff_c3[0], coeff_c3[1][0], coeff_c3[1][1], coeff_c3[1][2]])
-  return (coeff_c1, coeff_c2, coeff_c3)
+def get_dwt(channels, lvl=5):
+  coeffs = []
+  wavelet = "bior1.3"
+  for c in channels:
+    coeff = pywt.wavedec2(c, wavelet, level=lvl)
+    coeffs.append(np.array([coeff[0], coeff[1][0], coeff[1][1], coeff[1][2]]))
+  print(coeffs[0][0].shape)
+  return coeffs
 
 def get_feature_vector(cmp_dwt, rgb_dwt):
-  w_c1, w_c2, w_c3 = cmp_dwt
-  w_c4, w_c5, w_c6 = rgb_dwt
   vector = {
-      'w_c1': w_c1,
-      'w_c2': w_c2,
-      'w_c3': w_c3,
-      'w_c4': w_c4,
-      'w_c5': w_c5,
-      'w_c6': w_c6,
-      's_c1': np.std(w_c1[0]),
-      's_c2': np.std(w_c2[0]),
-      's_c3': np.std(w_c3[0])
+      'w_c1': cmp_dwt[0],
+      'w_c2': cmp_dwt[1],
+      'w_c3': cmp_dwt[2],
+      'w_c4': rgb_dwt[0],
+      'w_c5': rgb_dwt[1],
+      'w_c6': rgb_dwt[2],
+      's_c1': np.std(cmp_dwt[0][0]),
+      's_c2': np.std(cmp_dwt[1][0]),
+      's_c3': np.std(cmp_dwt[2][0])
   }
   return vector
 

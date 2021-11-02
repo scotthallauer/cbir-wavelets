@@ -1,3 +1,4 @@
+import copy
 import dataset_processor as dp
 from os import listdir, mkdir
 from os.path import join, isfile, isdir
@@ -6,67 +7,81 @@ class DatasetError(Exception):
   """A custom exception used to report errors in use of DatasetManager class"""
 
 class DatasetManager:
-  def __init__(self, path, image_dim):
-    if not isdir(path):
+  def __init__(self, root_path, image_dim):
+    self._data_path = join(root_path, "data")
+    if not isdir(self._data_path):
       try:
-        mkdir(path)
+        mkdir(self._data_path)
       except:
-        raise DatasetError(f"Application data path '{path}' does not exist and could not be created.")
-    self._path = path
+        raise DatasetError(f"Application data path '{self._data_path}' does not exist and could not be created.")
     self._image_dim = image_dim
+    self._datasets = []
+    self._loaded_dataset = {
+      "id": None,
+      "path": None,
+      "title": None,
+      "database": None
+    }
     self._active = False
     self._loaded = False
-    self._datasets = []
-    self._selected_idx = None
-    self.database = {}
 
   def reset(self):
-    if not isdir(self._path):
+    if not isdir(self._data_path):
       try:
-        mkdir(self._path)
+        mkdir(self._data_path)
       except:
-        raise DatasetError(f"Application data path '{self._path}' does not exist and could not be created.")
+        raise DatasetError(f"Application data path '{self._data_path}' does not exist and could not be created.")
+    self._datasets.clear()
+    self._loaded_dataset = {
+      "id": None,
+      "path": None,
+      "title": None,
+      "database": None
+    }
     self._active = False
     self._loaded = False
-    self._datasets.clear()
-    self._selected_idx = None
-    self.database = {}
 
   def discover_datasets(self):
     self.reset()
-    dirs = [d for d in listdir(self._path) if isdir(join(self._path, d)) and d.startswith("dataset")]
+    dirs = [d for d in listdir(self._data_path) if isdir(join(self._data_path, d)) and d.startswith("dataset")]
     for d in dirs:
-      idx = d[7:]
-      title_path = join(self._path, d, "title.txt")
+      dataset_id = d[7:]
+      dataset_path = join(self._data_path, d)
+      dataset_title = f"Dataset {dataset_id}"
+      title_path = join(dataset_path, "title.txt")
       if isfile(title_path):
         with open(title_path) as fo:
-          title = fo.readline().rstrip()
-      else:
-        title = f"Dataset {idx}"
-      self._datasets.append({"idx": idx, "title": title})
+          dataset_title = fo.readline().rstrip()
+      self._datasets.append({"id": dataset_id, "path": dataset_path, "title": dataset_title})
     self._datasets = sorted(self._datasets, key=lambda r: r["title"])
     self._active = True
     print(f"Discovered {len(self._datasets)} dataset(s).")
 
-  def load_dataset(self, idx):
+  def load_dataset(self, dataset_id):
     if not self._active:
       self.discover_datasets()
-    idx = str(idx)
-    if self.exists(idx):
-      self._selected_idx = idx
-      self.database = dp.load_database(join(self._path, f"dataset{idx}", "database.pickle"))
-      self._loaded = True
-      print(f"Loaded dataset '{self.get_title()}' with {self.database['size']} image(s).")
+    dataset_id = str(dataset_id)
+    for d in self._datasets:
+      if d["id"] == dataset_id:
+        self._loaded_dataset = {
+          "id": d["id"],
+          "path": d["path"],
+          "title": d["title"],
+          "database": dp.load_database(join(d["path"], "database.pickle"))
+        }
+        self._loaded = True
+        print(f"Loaded dataset '{self._loaded_dataset['title']}' with {self._loaded_dataset['database']['size']} image(s).")
+        break
 
   def import_dataset(self, src, title=""):
     if not isdir(src):
-      raise DatasetError(f"Dataset could not be imported because the source path '{src}' does not exist or is not a directory.")
-    idx = self.next_idx()
-    title = title if len(title) > 0 else f"Dataset {idx}"
-    dst = join(self._path, f"dataset{idx}")
-    mkdir(dst)
+      raise DatasetError(f"Cannot import dataset because the source path '{src}' does not exist or is not a directory.")
+    dataset_id = self.next_id()
+    dataset_title = title if len(title) > 0 else f"Dataset {dataset_id}"
+    dataset_path = join(self._data_path, f"dataset{dataset_id}")
+    mkdir(dataset_path)
     if len(title) > 0:
-      with open(join(dst, "title.txt"), "w") as fo:
+      with open(join(dataset_path, "title.txt"), "w") as fo:
         fo.write(title)
     dirs = [src] + [join(src, d) for d in listdir(src) if isdir(join(src, d))]
     print(f"Processing {len(dirs)} folder(s)...")
@@ -74,54 +89,56 @@ class DatasetManager:
     file_idx = 1
     for d in dirs:
       print(f"Processing folder '{d}'...")
-      c, i = dp.batch_copy(d, join(dst, "original"), file_idx)
-      file_idx = i
-      copy_time += c
-    resize_time = dp.batch_resize(join(dst, "original"), join(dst, "resized"), self._image_dim)
-    vectorize_time = dp.batch_vectorize(join(dst, "resized"), join(dst, "database.pickle"), self._image_dim)
-    print(f"Imported dataset '{title}'.")
+      time, file_idx = dp.batch_copy(d, join(dataset_path, "original"), file_idx)
+      copy_time += time
+    resize_time = dp.batch_resize(join(dataset_path, "original"), join(dataset_path, "resized"), self._image_dim)
+    vectorize_time = dp.batch_vectorize(join(dataset_path, "resized"), join(dataset_path, "database.pickle"), self._image_dim)
+    print(f"Imported dataset '{dataset_title}'.")
     self.discover_datasets()
-    self.load_dataset(idx)
+    self.load_dataset(dataset_id)
     return {"c": copy_time, "r": resize_time, "v": vectorize_time}
 
-  def get_datasets(self):
+  def list_datasets(self):
     if not self._active:
       self.discover_datasets()
-    return self._datasets
+    return copy.deepcopy(self._datasets)
 
-  def get_title(self, idx=None):
-    if idx is None:
-      idx = self._selected_idx
-    idx = str(idx)
-    if self.exists(idx):
-      for d in self._datasets:
-        if d["idx"] == idx:
-          return d["title"]
-    return None
+  def get_id(self):
+    if not self._loaded:
+      raise DatasetError(f"Cannot return dataset index because no dataset has been loaded.")
+    return copy.deepcopy(self._loaded_dataset["id"])
 
-  def get_path(self, idx=None):
-    if idx is None:
-      idx = self._selected_idx
-    idx = str(idx)
-    return join(self._path, f"dataset{idx}")
+  def get_title(self):
+    if not self._loaded:
+      raise DatasetError(f"Cannot return dataset title because no dataset has been loaded.")
+    return copy.deepcopy(self._loaded_dataset["title"])
 
-  def is_selected(self, idx):
-    idx = str(idx)
-    return self._selected_idx == idx
+  def get_path(self):
+    if not self._loaded:
+      raise DatasetError(f"Cannot return dataset path because no dataset has been loaded.")
+    return copy.deepcopy(self._loaded_dataset["path"])
 
-  def exists(self, idx):
+  def database(self):
+    if not self._loaded:
+      raise DatasetError(f"Cannot return dataset database because no dataset has been loaded.")
+    return self._loaded_dataset["database"]
+
+  def is_loaded(self, dataset_id):
+    return self._loaded_dataset["id"] == str(dataset_id)
+
+  def exists(self, dataset_id):
     if not self._active:
       self.discover_datasets()
-    idx = str(idx)
+    dataset_id = str(dataset_id)
     for d in self._datasets:
-      if d["idx"] == idx:
+      if d["id"] == dataset_id:
         return True
     return False
 
-  def next_idx(self):
+  def next_id(self):
     if not self._active:
       self.discover_datasets()
-    idx = 1
-    while self.exists(idx):
-      idx += 1
-    return str(idx)
+    dataset_id = 1
+    while self.exists(dataset_id):
+      dataset_id += 1
+    return str(dataset_id)
