@@ -56,12 +56,12 @@ class QueryManager:
 
   def get_results(self):
     if not self._executed:
-      raise DatasetError(f"Cannot return query results because no query has been executed.")
+      raise QueryError(f"Cannot return query results because no query has been executed.")
     return self._results
 
   def get_time(self):
     if not self._executed:
-      raise DatasetError(f"Cannot return query time because no query has been executed.")
+      raise QueryError(f"Cannot return query time because no query has been executed.")
     return self._timer.time()
 
   def export_results(self):
