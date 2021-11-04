@@ -1,12 +1,9 @@
 import PySimpleGUI as sg
 import cv2
 import math
-import dataset_processor as dp
 import image_processor as ip
-import image_comparator as ic
-from os import mkdir, getcwd
-from os.path import join, isfile, isdir
-from timer import Timer
+from os import getcwd
+from os.path import join
 from dataset_manager import DatasetManager
 from query_manager import QueryManager
 
