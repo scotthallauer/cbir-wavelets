@@ -215,7 +215,7 @@ RGB_WEIGHT_FRAME = [
 SELECTION_SETTING_FRAME = [
   [sg.Slider(default_value=QUERY["params"]["percent"], range=(1,100), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_PERCENT")],
   [sg.Text("percent", pad=(5, (0, 5)), justification="center", expand_x=True)],
-  [sg.Slider(default_value=QUERY["params"]["threshold"], range=(20000,1000000), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_THRESHOLD")],
+  [sg.Slider(default_value=QUERY["params"]["threshold"], range=(500,100000), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_THRESHOLD")],
   [sg.Text("threshold", pad=(5, (0, 5)), justification="center", expand_x=True)],
   [sg.Slider(default_value=QUERY["params"]["limit"], range=(1,50), size=(17,15), pad=(5, (5, 0)), orientation="h", key="PARAM_LIMIT")],
   [sg.Text("max results", pad=(5, (0, 5)), justification="center", expand_x=True)],
