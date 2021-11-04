@@ -1,6 +1,7 @@
 import PySimpleGUI as sg
 import cv2
 import math
+import webbrowser
 import image_processor as ip
 from os import getcwd
 from os.path import join
@@ -33,7 +34,7 @@ QM = QueryManager(ROOT, DM, IMAGE_DIM)
 
 QUERY = {
   "image": {
-    "path": join(ROOT, "src/media/query/query1.jpg")
+    "path": join(ROOT, "src/media/query/query6.jpg")
   },
   "params": {
     "percent": DEFAULT_PARAMS["percent"],
@@ -165,7 +166,7 @@ def generate_menu():
   menu_datasets = []
   for d in DM.list_datasets():
     menu_datasets.append(f"{'!' if DM.is_loaded(d['id']) else ''}{d['title']}{' (selected)' if DM.is_loaded(d['id']) else ''}::_DATASET-{d['id']}_")
-  return ['&File', ['&Import Dataset...', '&Select Dataset', menu_datasets]], ['&Help', ['Online Manual']]
+  return ['&File', ['&Import Dataset...', '&Select Dataset', menu_datasets]], ['&Help', ['User Manual']]
 
 # INITIALISE
 
@@ -306,6 +307,8 @@ while True:
     sg.Popup(f"Results exported to '{filename}'.", title="Export Complete", keep_on_top=True)
   if event == "Import Dataset...":
     open_import_window()
+  if event == "User Manual":
+    webbrowser.open("https://drive.google.com/file/d/1TaT4fnVeZuzRWBje9oVyzTqMKSnfs0WC/view?usp=sharing")
   if "_DATASET-" in event:
     idx = int(event[event.index("_DATASET-") + 9:len(event)-1])
     DM.load_dataset(idx)

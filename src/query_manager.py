@@ -66,7 +66,7 @@ class QueryManager:
 
   def export_results(self):
     num_images = min(len(self._results), self._query["params"]["limit"]) + 1
-    images = [self._query["image"]["large"]] + [ip.resize_image(cv2.imread(join(self._dataset["path"], "original", r["file"])), (228,228)) for r in self._results[:(num_images-1)]]
+    images = [ip.resize_image(cv2.imread(self._query["image"]["path"]), (228, 228))] + [ip.resize_image(cv2.imread(join(self._dataset["path"], "original", r["file"])), (228, 228)) for r in self._results[:(num_images-1)]]
     if num_images > 0:
       cols = 5
       rows = math.ceil(num_images/cols)
@@ -82,7 +82,7 @@ class QueryManager:
           axs[ax_idx].set_title((f"Result {i}" if i > 0 else "Query"), fontsize=10, fontweight=("normal" if i > 0 else "bold"))
           axs[ax_idx].set_xticks([])
           axs[ax_idx].set_yticks([])
-      plt.figtext(0.5, 0.07, f"Dataset: {self._dataset['title']}\nQuery Parameters: {str(self._query['params'])}", wrap=True, horizontalalignment="center", fontsize=12)
+      plt.figtext(0.5, 0.01, f"Dataset: {self._dataset['title']}\nQuery Parameters: {str(self._query['params'])}", wrap=True, horizontalalignment="center", fontsize=12)
       idx = 1
       if not isdir(self._results_path):
         mkdir(self._results_path)
