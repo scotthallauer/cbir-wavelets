@@ -191,7 +191,7 @@ DM.discover_datasets()
 if len(DM.list_datasets()) == 0:
   open_import_window()
 else:
-  DM.load_dataset(1)
+  DM.load_dataset(DM.list_datasets()[0]["id"])
 
 load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
 

@@ -71,7 +71,8 @@ class DatasetManager:
         }
         self._loaded = True
         print(f"Loaded dataset '{self._loaded_dataset['title']}' with {self._loaded_dataset['database']['size']} image(s).")
-        break
+        return
+    raise DatasetError(f"Cannot load dataset with ID '{dataset_id}' because no matching dataset exists.")
 
   def import_dataset(self, src, title=""):
     if not isdir(src):
@@ -105,7 +106,7 @@ class DatasetManager:
 
   def get_id(self):
     if not self._loaded:
-      raise DatasetError(f"Cannot return dataset index because no dataset has been loaded.")
+      raise DatasetError(f"Cannot return dataset ID because no dataset has been loaded.")
     return copy.deepcopy(self._loaded_dataset["id"])
 
   def get_title(self):

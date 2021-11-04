@@ -13,7 +13,7 @@ def calc_distance(query, candidate, params, vectors=range(4), channels=range(6))
   for i in vectors:
     for j in channels:
       if params["w_quad"][i] > 0 and params["w_comp"][j] > 0:
-        dist += params["w_quad"][i] * params["w_comp"][j] * np.linalg.norm(q[f'w_c{j+1}'][i]-c[f'w_c{j+1}'][i])
+        dist += params["w_quad"][i] * params["w_comp"][j] * np.linalg.norm(q[f"w_c{j+1}"][i]-c[f"w_c{j+1}"][i])
   return dist
 
 def pair2score(query, candidate, params):

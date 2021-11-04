@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import pywt
+import os
 from os.path import splitext
 
 def is_supported(filename):
@@ -39,13 +40,12 @@ def get_opp_channels(image):
   wb = r + g + b
   return [rg, by, wb]
 
-def get_dwt(channels, lvl=5):
-  coeffs = []
-  wavelet = "bior1.3"
-  for c in channels:
-    coeff = pywt.wavedec2(c, wavelet, level=lvl)
-    coeffs.append(np.array([coeff[0], coeff[1][0], coeff[1][1], coeff[1][2]]))
-  print(coeffs[0][0].shape)
+def get_dwt(channels, level=5):
+  coeffs = channels
+  for c in range(len(channels)):
+    for l in range(level):
+      coeff = pywt.dwt2(coeffs[c] if l == 0 else coeffs[c][0], wavelet="bior1.3")
+      coeffs[c] = np.array([coeff[0], coeff[1][0], coeff[1][1], coeff[1][2]])
   return coeffs
 
 def get_feature_vector(cmp_dwt, rgb_dwt):
@@ -65,7 +65,10 @@ def get_feature_vector(cmp_dwt, rgb_dwt):
 def img2vec(filename, dim):
   image = load_image(filename)
   if image.shape[:2] != dim:
-    image = resize_image(image, dim)
+    tempname = "temp" + splitext(filename)[1].lower()
+    save_image(resize_image(image, dim), tempname)
+    image = load_image(tempname)
+    os.remove(tempname)
   rgb_channels = get_rgb_channels(image)
   rgb_dwt = get_dwt(rgb_channels, 5)
   cmp_channels = get_cmp_channels(image)
