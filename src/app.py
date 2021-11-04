@@ -33,9 +33,7 @@ QM = QueryManager(ROOT, DM, IMAGE_DIM)
 
 QUERY = {
   "image": {
-    "path": join(ROOT, "src/media/query/query1.jpg"),
-    "small": None,
-    "large": None
+    "path": join(ROOT, "src/media/query/query1.jpg")
   },
   "params": {
     "percent": DEFAULT_PARAMS["percent"],
@@ -56,16 +54,10 @@ def width(proportion):
 def height(proportion):
   return math.floor(WINDOW_DIM[1] * proportion)
 
-def load_query_image(values):
-  QUERY["image"]["path"] = values["QUERY_PATH"]
-  image = cv2.imread(QUERY["image"]["path"])
-  QUERY["image"]["small"] = ip.resize_image(image, IMAGE_DIM)
-  QUERY["image"]["large"] = ip.resize_image(image, (width(0.19), width(0.19)))
-
-def display_query_image():
-  WINDOW["QUERY_IMAGE"].update(data=ip.img2bytes(QUERY["image"]["large"]))
-
-def load_query_param(values):
+def update_query(values):
+  QUERY["image"] = {
+    "path": values["QUERY_PATH"]
+  }
   QUERY["params"] = {
     "percent": int(values["PARAM_PERCENT"]),
     "threshold": int(values["PARAM_THRESHOLD"]),
@@ -85,13 +77,7 @@ def load_query_param(values):
     ],
     "limit": int(values["PARAM_LIMIT"])
   }
-
-def update_query(values):
-  load_query_image(values)
-  display_query_image()
-  load_query_param(values)
-  print(f"Dataset: {DM.get_title()}")
-  print(f"Parameters: {QUERY['params']}")
+  WINDOW["QUERY_IMAGE"].update(data=ip.img2bytes(ip.resize_image(cv2.imread(QUERY["image"]["path"]), (width(0.19), width(0.19)))))
 
 def display_results():
   for i in range(50):
@@ -190,8 +176,6 @@ if len(DM.list_datasets()) == 0:
 else:
   DM.load_dataset(DM.list_datasets()[0]["id"])
 
-load_query_image({"QUERY_PATH": QUERY["image"]["path"]})
-
 MENU = generate_menu()
 
 # WINDOW LAYOUT
@@ -247,7 +231,7 @@ QUERY_COLUMN = [
     sg.Text("[?]", font=("Helvetica", 8), pad=((2, 5), 5), tooltip="To change dataset, go to File > Select Dataset")
   ],
   [
-    sg.Column([[sg.Image(data=ip.img2bytes(QUERY["image"]["large"]), key="QUERY_IMAGE")]], justification='center')
+    sg.Column([[sg.Image(data=ip.img2bytes(ip.resize_image(cv2.imread(QUERY["image"]["path"]), (width(0.19), width(0.19)))), key="QUERY_IMAGE")]], justification='center')
   ],
   [
     sg.Text("Path"),
@@ -308,9 +292,10 @@ while True:
   if event == "Exit" or event == sg.WIN_CLOSED:
     break
   if event == "Load":
-    load_query_image(values)
-    display_query_image()
+    update_query(values)
   if event == "Search":
+    print(f"Dataset: {DM.get_title()}")
+    print(f"Query: {QUERY}")
     update_query(values)
     QM.process_query(QUERY)
     display_results()
