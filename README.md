@@ -1,4 +1,4 @@
-# CBIR Wavelet Search Engine
+# Wavelet Search
 
 ## Installation
 
