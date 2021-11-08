@@ -1,5 +1,17 @@
 # Wavelet Search
 
+## Overview
+Content-Based Image Retrieval (CBIR) is a problem that has seen massive 
+investment from field of Computer Vision over the past few decades. Many 
+approaches have been proposed and refined over the years, with incremental gains 
+in performance being achieved. Modern methods usually make use of convolutional 
+neural networks to achieve image understanding by the automated extraction of 
+features through supervised learning processes. However, in contrast, early 
+approaches relied more heavily on static, mathematical representations of 
+images. In this project, we investigate the implementation of one such 
+mathematical approach that makes use of the Discrete Wavelet Transform. We call 
+our system Wavelet Search.
+
 ## Installation
 
 Please ensure that you have Python 3.9 installed on your computer and configured
