@@ -128,7 +128,7 @@ def open_import_window():
     [sg.Frame(title="Dataset Information", font=("Helvetica", 11), pad=(10, 10), layout=[[sg.Column(input_left_column, pad=(10, 10)), sg.Column(input_right_column, pad=(10, 10))]])],
     [sg.Button("Import", pad=(10, 5)), sg.Button("Cancel")]
   ]
-  window = sg.Window("Import Dataset", layout, modal=True, keep_on_top=True)
+  window = sg.Window("Import Dataset", layout, modal=True)
   choice = None
   title, src = "", ""
   while True:
